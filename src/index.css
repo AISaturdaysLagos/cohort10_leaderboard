@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-tri-sand font-sans text-tri-ink antialiased;
+  font-weight: 400;
+}
+
+@layer components {
+  /** Matches tri-ai.org .btn-primary */
+  .tri-btn-primary {
+    @apply inline-flex items-center justify-center rounded border border-tri-leaf bg-tri-leaf px-6 py-2.5 text-center font-normal text-white shadow-tri transition-colors;
+    @apply hover:border-tri-mint hover:bg-tri-mint;
+  }
+  /** Dark hero — .btn-primary-outline (transparent, gold text) */
+  .tri-btn-outline-hero {
+    @apply inline-flex items-center justify-center rounded border border-transparent bg-transparent px-6 py-2.5 text-center font-normal text-tri-leaf shadow-none transition-colors;
+    @apply hover:text-tri-mint;
+  }
+  /** White section — outline reads as gold link button */
+  .tri-btn-outline-panel {
+    @apply inline-flex items-center justify-center rounded border border-tri-leaf bg-transparent px-6 py-2.5 text-center font-normal text-tri-leaf shadow-tri transition-colors;
+    @apply hover:border-tri-mint hover:bg-tri-mint hover:text-white;
+  }
+  /** Neutral secondary on white (Mobirise “second” control feel) */
+  .tri-btn-muted {
+    @apply inline-flex items-center justify-center rounded border border-neutral-300 bg-white px-6 py-2.5 text-center font-normal text-tri-ink shadow-sm transition-colors;
+    @apply hover:border-neutral-400 hover:bg-tri-mist;
+  }
+}

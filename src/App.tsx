@@ -3,9 +3,11 @@ import { SiteChrome } from "./components/SiteChrome";
 import { AdminPage } from "./pages/AdminPage";
 import { StudentPage } from "./pages/StudentPage";
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename || undefined}>
       <Routes>
         <Route path="/" element={<SiteChrome />}>
           <Route index element={<StudentPage />} />

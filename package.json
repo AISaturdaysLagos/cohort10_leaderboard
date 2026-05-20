@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "VITE_BASE_PATH=/cohort10_leaderboard/ npm run build",
     "preview": "vite preview",
+    "preview:pages": "VITE_BASE_PATH=/cohort10_leaderboard/ vite preview",
     "generate:sample-100teams": "node scripts/generate-100teams-sample.mjs"
   },
   "dependencies": {

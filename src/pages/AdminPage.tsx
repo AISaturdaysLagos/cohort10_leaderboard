@@ -21,6 +21,7 @@ import { savePublished } from "../lib/published";
 import { fmt1, parseIsoDate, pct, toIsoDate } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
+import { publicAsset } from "../lib/publicAsset";
 
 const EMPTY_TEAM_MAP = new Map<string, string>();
 
@@ -140,8 +141,8 @@ export function AdminPage() {
     setError(null);
     try {
       const [a, r] = await Promise.all([
-        fetch("/sample-week-activity.csv").then((x) => x.text()),
-        fetch("/sample-roster.csv").then((x) => x.text()),
+        fetch(publicAsset("sample-week-activity.csv")).then((x) => x.text()),
+        fetch(publicAsset("sample-roster.csv")).then((x) => x.text()),
       ]);
       setActivityText(a);
       setRosterText(r);
@@ -166,7 +167,7 @@ export function AdminPage() {
   const loadProgramRosterSample = useCallback(async () => {
     setError(null);
     try {
-      const r = await fetch("/sample-program-roster.csv").then((x) => x.text());
+      const r = await fetch(publicAsset("sample-program-roster.csv")).then((x) => x.text());
       setRosterText(r);
       setRosterTeamFallback("");
     } catch {
@@ -177,7 +178,7 @@ export function AdminPage() {
   const loadTeamsSample = useCallback(async () => {
     setError(null);
     try {
-      const t = await fetch("/sample-teams.csv").then((x) => x.text());
+      const t = await fetch(publicAsset("sample-teams.csv")).then((x) => x.text());
       parseTeamLookupCsv(t);
       setTeamsText(t);
     } catch {
@@ -190,15 +191,15 @@ export function AdminPage() {
     setError(null);
     try {
       const [a, r, t] = await Promise.all([
-        fetch("/sample-100teams-activity.csv").then(async (x) => {
+        fetch(publicAsset("sample-100teams-activity.csv")).then(async (x) => {
           if (!x.ok) throw new Error(`sample-100teams-activity.csv → HTTP ${x.status}`);
           return x.text();
         }),
-        fetch("/sample-100teams-roster.csv").then(async (x) => {
+        fetch(publicAsset("sample-100teams-roster.csv")).then(async (x) => {
           if (!x.ok) throw new Error(`sample-100teams-roster.csv → HTTP ${x.status}`);
           return x.text();
         }),
-        fetch("/sample-100teams-teams.csv").then(async (x) => {
+        fetch(publicAsset("sample-100teams-teams.csv")).then(async (x) => {
           if (!x.ok) throw new Error(`sample-100teams-teams.csv → HTTP ${x.status}`);
           return x.text();
         }),

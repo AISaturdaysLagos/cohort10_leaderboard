@@ -17,10 +17,22 @@ Published scores use `localStorage` in the browser (mentor publishes from admin 
 
 ```bash
 npm install
-npm run dev
+npm run dev:clean
 ```
 
-Open http://localhost:5173/
+Open the URL Vite prints (usually **http://localhost:5173/**). If the page hangs, run `npm run dev:clean` — a stuck process often blocks port 5173.
+
+If you previously published the **100 teams** sample, clear site data for localhost (DevTools → Application → Local Storage) if the page feels frozen.
+
+### Admin password
+
+1. Copy `.env.example` to `.env.local`.
+2. Set `VITE_ADMIN_PASSWORD` to a strong mentor-only password.
+3. Restart the dev server (`npm run dev:clean`).
+
+For GitHub Pages, add repo secret **`ADMIN_PASSWORD`** (Settings → Secrets and variables → Actions). The deploy workflow passes it into the build.
+
+`/admin` shows a sign-in form; the session lasts until the browser tab is closed. The student page stays public. This is a client-side gate suitable for a static site — not enterprise SSO.
 
 ### Preview the Pages build locally
 

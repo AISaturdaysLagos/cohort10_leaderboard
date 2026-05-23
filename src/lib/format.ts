@@ -14,3 +14,17 @@ export function parseIsoDate(s: string): Date {
   const [y, m, day] = s.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, day, 0, 0, 0, 0));
 }
+
+/** Format one or more award-winning team names for display. */
+export function formatAwardTeams(teams: string[]): string {
+  if (!teams.length) return "—";
+  return teams.join(", ");
+}
+
+export function formatSavedAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}

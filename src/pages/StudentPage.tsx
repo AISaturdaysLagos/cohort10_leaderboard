@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadPublished, PUBLISH_EVENT, PUBLISHED_STORAGE_KEY, type PublishedLeaderboard } from "../lib/published";
-import { fmt1, pct } from "../lib/format";
-import { METRICS } from "../lib/metrics.js";
+import { fmt1, formatAwardTeams, pct } from "../lib/format";
+import { METRICS } from "../lib/metrics.constants.js";
 import type { TeamMetricBreakdown } from "../types";
 
 function medal(rank: number): string {
@@ -22,14 +22,20 @@ function publishedAtLabel(iso: string): string {
 }
 
 export function StudentPage() {
-  const [data, setData] = useState<PublishedLeaderboard | null>(() => loadPublished());
+  const [data, setData] = useState<PublishedLeaderboard | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setData(loadPublished());
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    refresh();
+    const id = window.setTimeout(() => refresh(), 0);
+    return () => window.clearTimeout(id);
+  }, [refresh]);
+
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === PUBLISHED_STORAGE_KEY || e.key === null) refresh();
     };
@@ -61,33 +67,34 @@ export function StudentPage() {
               About TRI AI
             </a>
             <Link className="tri-btn-outline-hero" to="/admin">
-              Mentor admin
+              Mentors
             </Link>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl space-y-12 px-4 py-12">
-        {!data && (
+        {loading && (
+          <div className="rounded border border-neutral-200 bg-tri-sand p-10 text-center shadow-card">
+            <p className="font-body text-tri-lead text-tri-ink/70">Loading leaderboard…</p>
+          </div>
+        )}
+        {!loading && !data && (
           <div className="rounded border border-dashed border-neutral-300 bg-tri-sand p-10 text-center shadow-card">
-            <h2 className="font-display text-tri-section text-tri-forest">No published week yet</h2>
+            <h2 className="font-display text-tri-section text-tri-forest">Leaderboard coming soon</h2>
             <p className="mx-auto mt-4 max-w-md font-body text-tri-lead text-tri-ink/80">
-              Your mentor will publish this week&apos;s board from the admin page after uploading the cohort
-              export. If you&apos;re testing locally, open Admin and click{" "}
-              <strong>Publish to student page</strong>.
+              This week&apos;s team scores are not posted yet. Check back after your Saturday session — your
+              mentor will share the board here when it&apos;s ready.
             </p>
-            <Link to="/admin" className="tri-btn-primary mt-8 inline-flex">
-              Go to admin
-            </Link>
           </div>
         )}
 
-        {data && (
+        {!loading && data && (
           <>
             <section className="flex flex-col gap-4 rounded border border-neutral-200 bg-tri-sand p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">
-                  Published week
+                  This week
                 </p>
                 <p className="mt-1 font-display text-tri-section text-tri-forest">{data.weekLabel}</p>
                 <p className="mt-3 font-body text-tri-lead text-tri-ink/80">
@@ -96,7 +103,7 @@ export function StudentPage() {
                 </p>
               </div>
               <div className="text-left font-body text-tri-nav text-tri-ink/60 sm:text-right">
-                <p>Last updated</p>
+                <p>Updated</p>
                 <p className="font-medium text-tri-ink">{publishedAtLabel(data.publishedAt)}</p>
               </div>
             </section>
@@ -106,11 +113,11 @@ export function StudentPage() {
                 <h2 className="font-display text-tri-section text-tri-forest">Shout-outs</h2>
                 <p className="mt-2 font-body text-tri-lead text-tri-ink/75">Celebrating more than first place.</p>
                 <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <StudentAward title="Team of the week" emoji="🥇" team={awards.teamOfTheWeek} />
-                  <StudentAward title="Most improved" emoji="📈" team={awards.mostImproved} />
-                  <StudentAward title="Perfect attendance" emoji="🔥" team={awards.perfectAttendance} />
-                  <StudentAward title="Deep learners" emoji="🧠" team={awards.deepLearners} />
-                  <StudentAward title="Comeback team" emoji="💪" team={awards.comebackTeam} />
+                  <StudentAward title="Team of the week" emoji="🥇" teams={awards.teamOfTheWeek} />
+                  <StudentAward title="Most improved" emoji="📈" teams={awards.mostImproved} />
+                  <StudentAward title="Perfect attendance" emoji="🔥" teams={awards.perfectAttendance} />
+                  <StudentAward title="Deep learners" emoji="🧠" teams={awards.deepLearners} />
+                  <StudentAward title="Comeback team" emoji="💪" teams={awards.comebackTeam} />
                 </ul>
               </section>
             )}
@@ -128,14 +135,27 @@ export function StudentPage() {
             </section>
 
             <section className="rounded border border-neutral-200 bg-tri-sand p-8 font-body text-tri-lead text-tri-ink/85">
-              <h3 className="font-display text-2xl text-tri-forest">How scoring works</h3>
-              <p className="mt-4 leading-relaxed">
-                Teams earn up to <strong>{METRICS.totalMaxPoints}</strong> points from five ingredients:
-                finishing the weekly module ({METRICS.weights.completion} pts), quiz quality (
-                {METRICS.weights.quiz} pts), showing up ({METRICS.weights.participation} pts), time on task (
-                {METRICS.weights.effort} pts, capped at {METRICS.effort.expectedWeeklyMinutesPerMember} min/week
-                per member), and everyone contributing ({METRICS.weights.consistency} pts). Mentors tune the week
-                and course so we compare apples to apples as the programme moves forward.
+              <h3 className="font-display text-2xl text-tri-forest">How your team earns points</h3>
+              <ul className="mt-4 list-disc space-y-2 pl-5 leading-relaxed">
+                <li>
+                  <strong>Completion</strong> — finishing this week&apos;s module on Skills Boost
+                </li>
+                <li>
+                  <strong>Quiz</strong> — how well your team does on the course quizzes
+                </li>
+                <li>
+                  <strong>Participation</strong> — showing up and starting the weekly work
+                </li>
+                <li>
+                  <strong>Effort</strong> — time spent learning (up to about two hours per person counts fully)
+                </li>
+                <li>
+                  <strong>Together</strong> — everyone on the team takes part, not just a few people
+                </li>
+              </ul>
+              <p className="mt-4 leading-relaxed text-tri-ink/75">
+                Teams can earn up to {METRICS.totalMaxPoints} points each week. The board resets every week so
+                every team gets a fresh start.
               </p>
             </section>
           </>
@@ -154,7 +174,7 @@ export function StudentPage() {
   );
 }
 
-function StudentAward({ title, emoji, team }: { title: string; emoji: string; team: string | null }) {
+function StudentAward({ title, emoji, teams }: { title: string; emoji: string; teams: string[] }) {
   return (
     <li className="flex gap-4 rounded border border-neutral-200 bg-tri-sand p-5 shadow-card">
       <span className="text-2xl leading-none" aria-hidden>
@@ -162,7 +182,7 @@ function StudentAward({ title, emoji, team }: { title: string; emoji: string; te
       </span>
       <div>
         <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">{title}</p>
-        <p className="mt-1 font-display text-xl font-semibold text-tri-leaf">{team ?? "—"}</p>
+        <p className="mt-1 font-display text-xl font-semibold text-tri-leaf">{formatAwardTeams(teams)}</p>
       </div>
     </li>
   );

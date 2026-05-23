@@ -13,6 +13,10 @@ export default defineConfig(({ command }) => {
 
   return {
     base,
+    server: {
+      port: 5173,
+      strictPort: false,
+    },
     plugins: [
       react(),
       {

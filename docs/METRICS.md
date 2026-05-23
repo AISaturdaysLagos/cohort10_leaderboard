@@ -126,11 +126,11 @@ Teams are ranked by `totalScore` descending.
 
 | Award               | Rule |
 |---------------------|------|
-| **Team of the week** | Highest `totalScore`; tie → higher `completionRate`. |
-| **Deep learners**    | Highest `avgQuiz`. |
-| **Perfect attendance** | First team with `participationRate = 100%`. |
-| **Most improved**    | Largest gain in `totalScore` vs previous published week (must be &gt; 0). Requires a comparison week in admin history. |
-| **Comeback team**    | Previous week `totalScore` &lt; 50 **and** gain &gt; 5 points vs previous week. |
+| **Team of the week** | Highest `totalScore`; among those tied, highest `completionRate`. **All teams still tied after that get the award** (comma-separated in the UI). |
+| **Deep learners**    | Highest `avgQuiz` (must be &gt; 0). All teams tied at the top win. |
+| **Perfect attendance** | `participationRate = 100%`. Every qualifying team wins. |
+| **Most improved**    | Largest gain in `totalScore` vs previous week (must be &gt; 0). All teams tied at the top gain win. Requires comparison week in admin history. |
+| **Comeback team**    | Previous week `totalScore` &lt; 50 **and** gain &gt; 5 points. All teams tied for the largest gain among eligible teams win. |
 
 Thresholds live in `METRICS.awards` in [`metrics.js`](../src/lib/metrics.js).
 

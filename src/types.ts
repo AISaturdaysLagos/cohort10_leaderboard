@@ -41,11 +41,11 @@ export type TeamMetricBreakdown = {
 };
 
 export type WeeklyAwards = {
-  teamOfTheWeek: string | null;
-  mostImproved: string | null;
-  perfectAttendance: string | null;
-  deepLearners: string | null;
-  comebackTeam: string | null;
+  teamOfTheWeek: string[];
+  mostImproved: string[];
+  perfectAttendance: string[];
+  deepLearners: string[];
+  comebackTeam: string[];
 };
 
 export type StoredWeekSnapshot = {

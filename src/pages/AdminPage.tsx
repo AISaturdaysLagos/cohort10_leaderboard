@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
 import { Link } from "react-router-dom";
 import type { WeekBounds } from "../types";
-import { defaultUtcWeekContaining, formatWeekLabel } from "../lib/dates";
+import {
+  activityDateExtent,
+  formatWeekLabel,
+  listUtcWeekMondaysBetween,
+  utcMondayIsoFromDate,
+  weekBoundsFromMondayIso,
+} from "../lib/dates";
 import { parseActivityCsv, parseRosterCsv, parseTeamLookupCsv, mergeTeamAssignments } from "../lib/parseCsv";
 import {
   computeTeamMetrics,
@@ -16,9 +22,11 @@ import {
   listCourseActivities,
   snapshotId,
 } from "../lib/scoring";
-import { loadHistory, saveHistoryEntry, type HistoryEntry } from "../lib/history";
+import { MentorLeaderboardTable } from "../components/MentorLeaderboardTable";
+import { WeekPicker } from "../components/WeekPicker";
+import { deleteHistoryEntry, loadHistory, saveHistoryEntry, type HistoryEntry } from "../lib/history";
 import { savePublished } from "../lib/published";
-import { fmt1, parseIsoDate, pct, toIsoDate } from "../lib/format";
+import { fmt1, formatAwardTeams, formatSavedAt } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
 import { publicAsset } from "../lib/publicAsset";
@@ -30,53 +38,62 @@ export function AdminPage() {
   const [rosterText, setRosterText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
-  const [weekStartStr, setWeekStartStr] = useState("2026-04-14");
-  const [weekEndStr, setWeekEndStr] = useState("2026-04-20");
+  const [weekMondayIso, setWeekMondayIso] = useState("2026-04-14");
   const [parentOverride, setParentOverride] = useState("");
   const [focalOverride, setFocalOverride] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [compareId, setCompareId] = useState<string>("");
+  const [viewHistoryId, setViewHistoryId] = useState<string>("");
   const [rosterTeamFallback, setRosterTeamFallback] = useState("");
   const [teamsText, setTeamsText] = useState("");
+  const deferredActivityText = useDeferredValue(activityText);
+  const deferredRosterText = useDeferredValue(rosterText);
+  const deferredTeamsText = useDeferredValue(teamsText);
+
   const rows = useMemo(() => {
-    if (!activityText.trim()) return [];
+    if (!deferredActivityText.trim()) return [];
     try {
-      return parseActivityCsv(activityText);
+      return parseActivityCsv(deferredActivityText);
     } catch {
       return [];
     }
-  }, [activityText]);
+  }, [deferredActivityText]);
 
   const teamLookup = useMemo(() => {
-    if (!teamsText.trim()) return EMPTY_TEAM_MAP;
+    if (!deferredTeamsText.trim()) return EMPTY_TEAM_MAP;
     try {
-      return parseTeamLookupCsv(teamsText);
+      return parseTeamLookupCsv(deferredTeamsText);
     } catch {
       return EMPTY_TEAM_MAP;
     }
-  }, [teamsText]);
+  }, [deferredTeamsText]);
 
   const roster = useMemo(() => {
-    if (!rosterText.trim()) return [];
+    if (!deferredRosterText.trim()) return [];
     try {
-      const base = parseRosterCsv(rosterText, {
+      const base = parseRosterCsv(deferredRosterText, {
         defaultTeamWhenMissing: rosterTeamFallback.trim() || undefined,
       });
       return mergeTeamAssignments(base, teamLookup);
     } catch {
       return [];
     }
-  }, [rosterText, rosterTeamFallback, teamLookup]);
+  }, [deferredRosterText, rosterTeamFallback, teamLookup]);
+
+  const isParsing =
+    activityText !== deferredActivityText ||
+    rosterText !== deferredRosterText ||
+    teamsText !== deferredTeamsText;
 
   const teamSummary = useMemo(() => teamLookupSummary(teamLookup), [teamLookup]);
 
-  const week: WeekBounds = useMemo(
-    () => ({
-      start: parseIsoDate(weekStartStr),
-      end: new Date(parseIsoDate(weekEndStr).getTime() + 24 * 60 * 60 * 1000 - 1),
-    }),
-    [weekStartStr, weekEndStr],
-  );
+  const week: WeekBounds = useMemo(() => weekBoundsFromMondayIso(weekMondayIso), [weekMondayIso]);
+
+  const weekMondayOptions = useMemo(() => {
+    const extent = activityDateExtent(rows);
+    if (!extent) return [];
+    return listUtcWeekMondaysBetween(extent.min, extent.max).reverse();
+  }, [rows]);
 
   const latestCourseDate = useLatestCourseDate(rows);
 
@@ -137,6 +154,23 @@ export function AdminPage() {
     [week, focalActivity],
   );
 
+  const viewedSnapshot = useMemo(
+    () => history.find((h) => h.id === viewHistoryId) ?? null,
+    [history, viewHistoryId],
+  );
+
+  const refreshHistory = useCallback(() => {
+    setHistory(loadHistory());
+  }, []);
+
+  const removeSnapshot = (id: string) => {
+    if (!window.confirm("Remove this saved snapshot from history?")) return;
+    deleteHistoryEntry(id);
+    if (viewHistoryId === id) setViewHistoryId("");
+    if (compareId === id) setCompareId("");
+    refreshHistory();
+  };
+
   const loadSamples = useCallback(async () => {
     setError(null);
     try {
@@ -152,9 +186,7 @@ export function AdminPage() {
           .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
           .map((row) => row.dateStarted!)
           .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date();
-      const w = defaultUtcWeekContaining(anchor);
-      setWeekStartStr(toIsoDate(w.start));
-      setWeekEndStr(toIsoDate(w.end));
+      setWeekMondayIso(utcMondayIsoFromDate(anchor));
       setParentOverride("");
       setFocalOverride("");
       setRosterTeamFallback("");
@@ -214,9 +246,7 @@ export function AdminPage() {
           .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
           .map((row) => row.dateStarted!)
           .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date("2026-04-16T12:00:00Z");
-      const w = defaultUtcWeekContaining(anchor);
-      setWeekStartStr(toIsoDate(w.start));
-      setWeekEndStr(toIsoDate(w.end));
+      setWeekMondayIso(utcMondayIsoFromDate(anchor));
       setParentOverride("");
       setFocalOverride("");
       setRosterTeamFallback("");
@@ -231,12 +261,9 @@ export function AdminPage() {
   }, []);
 
   useEffect(() => {
-    void loadSamples();
-  }, [loadSamples]);
-
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
+    const id = window.setTimeout(() => refreshHistory(), 0);
+    return () => window.clearTimeout(id);
+  }, [refreshHistory]);
 
   const onActivityFile = async (f: File | null) => {
     if (!f) return;
@@ -250,9 +277,7 @@ export function AdminPage() {
           .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
           .map((row) => row.dateStarted!)
           .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date();
-      const w = defaultUtcWeekContaining(anchor);
-      setWeekStartStr(toIsoDate(w.start));
-      setWeekEndStr(toIsoDate(w.end));
+      setWeekMondayIso(utcMondayIsoFromDate(anchor));
       setFocalOverride("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid activity CSV");
@@ -292,7 +317,8 @@ export function AdminPage() {
       savedAt: new Date().toISOString(),
     };
     saveHistoryEntry(entry);
-    setHistory(loadHistory());
+    refreshHistory();
+    setViewHistoryId(id);
   };
 
   const publishToStudents = () => {
@@ -351,6 +377,11 @@ export function AdminPage() {
         {error && (
           <div className="rounded border border-red-300 bg-red-50 px-4 py-3 font-body text-sm text-red-900">
             {error}
+          </div>
+        )}
+        {isParsing && (
+          <div className="rounded border border-tri-leaf/35 bg-tri-mist px-4 py-3 font-body text-sm text-tri-forest">
+            Processing uploaded CSV data…
           </div>
         )}
 
@@ -460,26 +491,11 @@ export function AdminPage() {
                 Publish to student page
               </button>
             </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <label className="block font-body text-tri-nav">
-                <span className="font-medium text-tri-ink">Week start (UTC)</span>
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded border border-neutral-300 bg-tri-mist px-3 py-2 font-body text-tri-nav"
-                  value={weekStartStr}
-                  onChange={(e) => setWeekStartStr(e.target.value)}
-                />
-              </label>
-              <label className="block font-body text-tri-nav">
-                <span className="font-medium text-tri-ink">Week end (UTC)</span>
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded border border-neutral-300 bg-tri-mist px-3 py-2 font-body text-tri-nav"
-                  value={weekEndStr}
-                  onChange={(e) => setWeekEndStr(e.target.value)}
-                />
-              </label>
-            </div>
+            <WeekPicker
+              mondayIso={weekMondayIso}
+              onMondayIsoChange={setWeekMondayIso}
+              weekOptions={weekMondayOptions.length > 0 ? weekMondayOptions : undefined}
+            />
             <label className="mt-4 block font-body text-tri-nav">
               <span className="font-medium text-tri-ink">Parent learning path (override)</span>
               <input
@@ -536,11 +552,11 @@ export function AdminPage() {
                   ))}
               </select>
               <ul className="mt-5 space-y-3 text-sm">
-                <AwardRow icon="🥇" label="Team of the week" value={awards.teamOfTheWeek} />
-                <AwardRow icon="📈" label="Most improved" value={awards.mostImproved} />
-                <AwardRow icon="🔥" label="Perfect attendance" value={awards.perfectAttendance} />
-                <AwardRow icon="🧠" label="Deep learners" value={awards.deepLearners} />
-                <AwardRow icon="💪" label="Comeback team" value={awards.comebackTeam} />
+                <AwardRow icon="🥇" label="Team of the week" teams={awards.teamOfTheWeek} />
+                <AwardRow icon="📈" label="Most improved" teams={awards.mostImproved} />
+                <AwardRow icon="🔥" label="Perfect attendance" teams={awards.perfectAttendance} />
+                <AwardRow icon="🧠" label="Deep learners" teams={awards.deepLearners} />
+                <AwardRow icon="💪" label="Comeback team" teams={awards.comebackTeam} />
               </ul>
             </div>
             <FormulaCard />
@@ -548,9 +564,92 @@ export function AdminPage() {
         </section>
 
         <section className="overflow-hidden rounded border border-neutral-200 bg-tri-sand shadow-card">
+          <div className="border-b border-neutral-200 bg-tri-mist px-6 py-4">
+            <h2 className="font-display text-tri-section text-tri-forest">Saved week snapshots</h2>
+            <p className="mt-2 font-body text-tri-nav text-tri-ink/70">
+              Every <strong>Save snapshot to history</strong> stores rankings for this browser (up to 24 weeks).
+              Open any week below to review past leaderboards or set it as the compare baseline for awards.
+            </p>
+          </div>
+          {history.length === 0 ? (
+            <p className="px-6 py-10 text-center font-body text-tri-nav text-tri-ink/55">
+              No snapshots yet. Upload data, compute scores, then save the current week.
+            </p>
+          ) : (
+            <ul className="divide-y divide-neutral-200">
+              {history.map((h) => {
+                const top = h.metrics[0];
+                const isCurrent = h.id === currentSnapshotId;
+                const isViewing = h.id === viewHistoryId;
+                return (
+                  <li key={h.id} className="px-6 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-lg font-semibold text-tri-forest">{h.weekLabel}</p>
+                        <p className="mt-1 truncate font-body text-tri-nav text-tri-ink/75" title={h.focalActivity}>
+                          {h.focalActivity}
+                        </p>
+                        <p className="mt-2 font-body text-xs text-tri-ink/55">
+                          Saved {formatSavedAt(h.savedAt)} · {h.metrics.length} teams
+                          {top ? (
+                            <>
+                              {" "}
+                              · Leader: <span className="font-medium text-tri-ink">{top.team}</span> (
+                              {fmt1(top.totalScore)} pts)
+                            </>
+                          ) : null}
+                          {isCurrent ? (
+                            <span className="ml-2 rounded bg-tri-leaf/15 px-1.5 py-0.5 font-semibold text-tri-forest">
+                              matches current week
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <div className="flex flex-shrink-0 flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="tri-btn-muted text-sm"
+                          onClick={() => setViewHistoryId(isViewing ? "" : h.id)}
+                        >
+                          {isViewing ? "Hide" : "View"}
+                        </button>
+                        <button
+                          type="button"
+                          className="tri-btn-muted text-sm"
+                          onClick={() => setCompareId(h.id === compareId ? "" : h.id)}
+                        >
+                          {h.id === compareId ? "Comparing" : "Compare"}
+                        </button>
+                        <button
+                          type="button"
+                          className="tri-btn-muted text-sm text-red-800"
+                          onClick={() => removeSnapshot(h.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {isViewing && (
+                      <div className="mt-4 overflow-hidden rounded border border-neutral-200">
+                        <MentorLeaderboardTable metrics={h.metrics} />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {viewedSnapshot && (
+            <div className="border-t border-neutral-200 bg-tri-mist/40 px-6 py-3 font-body text-tri-nav text-tri-ink/65">
+              Viewing snapshot: <strong>{viewedSnapshot.weekLabel}</strong>
+            </div>
+          )}
+        </section>
+
+        <section className="overflow-hidden rounded border border-neutral-200 bg-tri-sand shadow-card">
           <div className="flex flex-col gap-2 border-b border-neutral-200 bg-tri-mist px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-display text-tri-section text-tri-forest">Leaderboard (full mentor view)</h2>
+              <h2 className="font-display text-tri-section text-tri-forest">Current week (draft)</h2>
               <p className="mt-1 font-body text-tri-nav text-tri-ink/70">
                 {focalActivity ? (
                   <>
@@ -566,66 +665,10 @@ export function AdminPage() {
               member
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left font-body text-tri-nav">
-              <thead>
-                <tr className="border-b border-neutral-200 bg-tri-sand text-xs font-nav uppercase tracking-wide text-tri-ink/50">
-                  <th className="px-4 py-3">#</th>
-                  <th className="px-4 py-3">Team</th>
-                  <th className="px-4 py-3">Total</th>
-                  <th className="px-4 py-3">Completion /{METRICS.weights.completion}</th>
-                  <th className="px-4 py-3">Quiz /{METRICS.weights.quiz}</th>
-                  <th className="px-4 py-3">Participation /{METRICS.weights.participation}</th>
-                  <th className="px-4 py-3">Effort /{METRICS.weights.effort}</th>
-                  <th className="px-4 py-3">Consistency /{METRICS.weights.consistency}</th>
-                  <th className="px-4 py-3">Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.map((m, i) => (
-                  <tr key={m.team} className={i % 2 === 0 ? "bg-tri-sand" : "bg-tri-mist/50"}>
-                    <td className="px-4 py-3 font-medium text-tri-ink/60">{i + 1}</td>
-                    <td className="px-4 py-3 font-semibold text-tri-forest">{m.team}</td>
-                    <td className="px-4 py-3 font-display text-lg font-bold text-tri-leaf">{fmt1(m.totalScore)}</td>
-                    <td className="px-4 py-3 text-tri-ink/80">
-                      {fmt1(m.completionPoints)}{" "}
-                      <span className="text-xs text-tri-ink/45">
-                        ({m.completedCount}/{m.activeMembers} · {pct(m.completionRate)})
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-tri-ink/80">
-                      {fmt1(m.quizPoints)}{" "}
-                      <span className="text-xs text-tri-ink/45">(avg {pct(m.avgQuiz)})</span>
-                    </td>
-                    <td className="px-4 py-3 text-tri-ink/80">
-                      {fmt1(m.participationPoints)}{" "}
-                      <span className="text-xs text-tri-ink/45">
-                        ({m.participatedCount}/{m.activeMembers})
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-tri-ink/80">
-                      {fmt1(m.effortPoints)}{" "}
-                      <span className="text-xs text-tri-ink/45">
-                        (avg {fmt1(m.avgLearningMinutes)} min)
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-tri-ink/80">
-                      {fmt1(m.consistencyPoints)}{" "}
-                      <span className="text-xs text-tri-ink/45">({m.inactiveCount} inactive)</span>
-                    </td>
-                    <td className="px-4 py-3 text-tri-ink/70">{m.activeMembers}</td>
-                  </tr>
-                ))}
-                {!metrics.length && (
-                  <tr>
-                    <td className="px-4 py-10 text-center text-tri-ink/55" colSpan={9}>
-                      Upload a valid activity CSV and roster, then pick the focal course for this week.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <MentorLeaderboardTable
+            metrics={metrics}
+            emptyMessage="Upload a valid activity CSV and roster, then pick the focal course for this week."
+          />
         </section>
 
         <footer className="border-t border-neutral-200 bg-tri-night pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
@@ -642,13 +685,13 @@ export function AdminPage() {
   );
 }
 
-function AwardRow({ icon, label, value }: { icon: string; label: string; value: string | null }) {
+function AwardRow({ icon, label, teams }: { icon: string; label: string; teams: string[] }) {
   return (
     <li className="flex items-start gap-2">
       <span className="text-lg leading-none">{icon}</span>
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">{label}</p>
-        <p className="font-medium text-white">{value ?? "—"}</p>
+        <p className="font-medium text-white">{formatAwardTeams(teams)}</p>
       </div>
     </li>
   );

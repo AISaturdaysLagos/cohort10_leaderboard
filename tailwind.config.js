@@ -26,10 +26,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"Jost"', "system-ui", "sans-serif"],
-        display: ['"Poppins"', "system-ui", "sans-serif"],
-        body: ['"Raleway"', "system-ui", "sans-serif"],
-        nav: ['"Roboto Condensed"', "Arial Narrow", "system-ui", "sans-serif"],
+        sans: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
+        body: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
+        nav: ["Arial Narrow", "system-ui", "sans-serif"],
       },
       fontSize: {
         /** Mobirise .display-1 */

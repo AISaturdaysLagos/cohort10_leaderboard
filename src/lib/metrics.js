@@ -1,27 +1,11 @@
 /**
- * Team leaderboard metrics — weights, formulas, and computation.
- * Human-readable reference: docs/METRICS.md
+ * Team leaderboard metrics — formulas and computation.
+ * Weights: ./metrics.constants.js · docs: docs/METRICS.md
  */
 import { isInRange } from "./dates";
+import { METRICS } from "./metrics.constants.js";
 
-export const METRICS = {
-  totalMaxPoints: 100,
-  weights: {
-    completion: 40,
-    quiz: 20,
-    participation: 15,
-    effort: 15,
-    consistency: 10,
-  },
-  effort: {
-    expectedWeeklyMinutesPerMember: 120,
-  },
-  awards: {
-    comebackPreviousScoreBelow: 50,
-    comebackMinPointGain: 5,
-    teamOfWeekTieBreak: "higher_completion_rate",
-  },
-};
+export { METRICS } from "./metrics.constants.js";
 
 /** Display copy derived from METRICS — keep UI in sync with computation. */
 export const METRIC_DEFINITIONS = [
@@ -195,70 +179,74 @@ export function computeTeamMetrics(rows, roster, week, focalActivity) {
   return out;
 }
 
+const SCORE_EPS = 1e-9;
+
+/** All teams tied for the highest value of `scoreFn` (empty if none). */
+function tiedAtTop(candidates, scoreFn) {
+  if (!candidates.length) return [];
+  let best = -Infinity;
+  for (const t of candidates) {
+    const v = scoreFn(t);
+    if (v > best) best = v;
+  }
+  if (!Number.isFinite(best)) return [];
+  return candidates.filter((t) => scoreFn(t) >= best - SCORE_EPS).map((t) => t.team);
+}
+
+function teamOfTheWeekWinners(current) {
+  const topByScore = tiedAtTop(current, (t) => t.totalScore);
+  if (!topByScore.length) return [];
+  const tiedOnScore = current.filter((t) => topByScore.includes(t.team));
+  return tiedAtTop(tiedOnScore, (t) => t.completionRate);
+}
+
+function mostImprovedWinners(current, prev) {
+  if (!prev) return [];
+  const byTeam = new Map(prev.map((x) => [x.team, x]));
+  const deltas = [];
+  for (const t of current) {
+    const p = byTeam.get(t.team);
+    if (!p) continue;
+    const d = t.totalScore - p.totalScore;
+    if (d > SCORE_EPS) deltas.push({ team: t.team, delta: d });
+  }
+  return tiedAtTop(deltas, (x) => x.delta);
+}
+
+function comebackWinners(current, prev, awards) {
+  if (!prev) return [];
+  const byTeam = new Map(prev.map((x) => [x.team, x]));
+  const eligible = [];
+  for (const t of current) {
+    const p = byTeam.get(t.team);
+    if (!p) continue;
+    if (p.totalScore >= awards.comebackPreviousScoreBelow - SCORE_EPS) continue;
+    const d = t.totalScore - p.totalScore;
+    if (d > awards.comebackMinPointGain + SCORE_EPS) {
+      eligible.push({ team: t.team, delta: d });
+    }
+  }
+  return tiedAtTop(eligible, (x) => x.delta);
+}
+
 export function computeWeeklyAwards(current, previous) {
   const { awards } = METRICS;
-  const byTeam = (m) => new Map(m.map((x) => [x.team, x]));
-  const cur = byTeam(current);
-  const prev = previous ? byTeam(previous) : null;
+  const prev = previous ?? null;
 
-  let teamOfTheWeek = null;
-  let best = -1;
-  for (const t of current) {
-    if (t.totalScore > best) {
-      best = t.totalScore;
-      teamOfTheWeek = t.team;
-    } else if (t.totalScore === best && teamOfTheWeek) {
-      const curBest = cur.get(teamOfTheWeek);
-      if (t.completionRate > curBest.completionRate) teamOfTheWeek = t.team;
-    }
-  }
+  const teamOfTheWeek = teamOfTheWeekWinners(current);
 
-  let deepLearners = null;
-  let bestQuiz = -1;
-  for (const t of current) {
-    if (t.avgQuiz > bestQuiz) {
-      bestQuiz = t.avgQuiz;
-      deepLearners = t.team;
-    }
-  }
+  const deepLearners = tiedAtTop(current, (t) => t.avgQuiz).filter((team) => {
+    const row = current.find((t) => t.team === team);
+    return row && row.avgQuiz > SCORE_EPS;
+  });
 
-  let perfectAttendance = null;
-  for (const t of current) {
-    if (t.participationRate >= 1 - 1e-9) {
-      perfectAttendance = t.team;
-      break;
-    }
-  }
+  const perfectAttendance = current
+    .filter((t) => t.participationRate >= 1 - SCORE_EPS)
+    .map((t) => t.team);
 
-  let mostImproved = null;
-  let bestDelta = -Infinity;
-  if (prev) {
-    for (const t of current) {
-      const p = prev.get(t.team);
-      if (!p) continue;
-      const d = t.totalScore - p.totalScore;
-      if (d > bestDelta) {
-        bestDelta = d;
-        mostImproved = t.team;
-      }
-    }
-    if (bestDelta <= 0) mostImproved = null;
-  }
+  const mostImproved = mostImprovedWinners(current, prev);
 
-  let comebackTeam = null;
-  let bestComeback = -Infinity;
-  if (prev) {
-    for (const t of current) {
-      const p = prev.get(t.team);
-      if (!p) continue;
-      if (p.totalScore >= awards.comebackPreviousScoreBelow) continue;
-      const d = t.totalScore - p.totalScore;
-      if (d > awards.comebackMinPointGain && d > bestComeback) {
-        bestComeback = d;
-        comebackTeam = t.team;
-      }
-    }
-  }
+  const comebackTeam = comebackWinners(current, prev, awards);
 
   return {
     teamOfTheWeek,

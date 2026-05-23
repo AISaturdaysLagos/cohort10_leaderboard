@@ -1,11 +1,11 @@
 /**
  * Team leaderboard metrics — formulas and computation.
- * Weights: ./metrics.constants.js · docs: docs/METRICS.md
+ * Weights: ./metrics.constants.ts · docs: docs/METRICS.md
  */
 import { isInRange } from "./dates";
-import { METRICS } from "./metrics.constants.js";
+import { METRICS } from "./metrics.constants";
 
-export { METRICS } from "./metrics.constants.js";
+export { METRICS } from "./metrics.constants";
 
 /** Display copy derived from METRICS — keep UI in sync with computation. */
 export const METRIC_DEFINITIONS = [

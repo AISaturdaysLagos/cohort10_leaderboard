@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadPublished, PUBLISH_EVENT, PUBLISHED_STORAGE_KEY, type PublishedLeaderboard } from "../lib/published";
 import { fmt1, formatAwardTeams, pct } from "../lib/format";
-import { METRICS } from "../lib/metrics.constants.js";
+import { METRICS } from "../lib/metrics.constants";
 import type { TeamMetricBreakdown } from "../types";
 
 function medal(rank: number): string {

@@ -30,8 +30,7 @@ import { fmt1, formatAwardTeams, formatSavedAt } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
 import { publicAsset } from "../lib/publicAsset";
-
-const EMPTY_TEAM_MAP = new Map<string, string>();
+import { internalTeamLookup } from "../lib/defaultTeamMap";
 
 export function AdminPage() {
   const [activityText, setActivityText] = useState<string>("");
@@ -59,14 +58,18 @@ export function AdminPage() {
     }
   }, [deferredActivityText]);
 
+  const teamMapIsOverride = Boolean(deferredTeamsText.trim());
+
   const teamLookup = useMemo(() => {
-    if (!deferredTeamsText.trim()) return EMPTY_TEAM_MAP;
-    try {
-      return parseTeamLookupCsv(deferredTeamsText);
-    } catch {
-      return EMPTY_TEAM_MAP;
+    if (teamMapIsOverride) {
+      try {
+        return parseTeamLookupCsv(deferredTeamsText);
+      } catch {
+        return new Map<string, string>();
+      }
     }
-  }, [deferredTeamsText]);
+    return internalTeamLookup();
+  }, [deferredTeamsText, teamMapIsOverride]);
 
   const roster = useMemo(() => {
     if (!deferredRosterText.trim()) return [];
@@ -85,7 +88,11 @@ export function AdminPage() {
     rosterText !== deferredRosterText ||
     teamsText !== deferredTeamsText;
 
-  const teamSummary = useMemo(() => teamLookupSummary(teamLookup), [teamLookup]);
+  const teamSummary = useMemo(() => {
+    const base = teamLookupSummary(teamLookup);
+    if (!base) return "";
+    return teamMapIsOverride ? `${base} · uploaded team map` : `${base} · built-in team.csv`;
+  }, [teamLookup, teamMapIsOverride]);
 
   const week: WeekBounds = useMemo(() => weekBoundsFromMondayIso(weekMondayIso), [weekMondayIso]);
 
@@ -196,7 +203,7 @@ export function AdminPage() {
     }
   }, []);
 
-  const loadProgramRosterSample = useCallback(async () => {
+  const loadProgramSample = useCallback(async () => {
     setError(null);
     try {
       const r = await fetch(publicAsset("sample-program-roster.csv")).then((x) => x.text());
@@ -204,59 +211,6 @@ export function AdminPage() {
       setRosterTeamFallback("");
     } catch {
       setError("Could not load sample program roster from /public.");
-    }
-  }, []);
-
-  const loadTeamsSample = useCallback(async () => {
-    setError(null);
-    try {
-      const t = await fetch(publicAsset("sample-teams.csv")).then((x) => x.text());
-      parseTeamLookupCsv(t);
-      setTeamsText(t);
-    } catch {
-      setError("Could not load sample teams from /public.");
-    }
-  }, []);
-
-  /** 100 teams × 10 students — see `public/sample-100teams-*.csv` (regenerate: `npm run generate:sample-100teams`). */
-  const load100TeamsSample = useCallback(async () => {
-    setError(null);
-    try {
-      const [a, r, t] = await Promise.all([
-        fetch(publicAsset("sample-100teams-activity.csv")).then(async (x) => {
-          if (!x.ok) throw new Error(`sample-100teams-activity.csv → HTTP ${x.status}`);
-          return x.text();
-        }),
-        fetch(publicAsset("sample-100teams-roster.csv")).then(async (x) => {
-          if (!x.ok) throw new Error(`sample-100teams-roster.csv → HTTP ${x.status}`);
-          return x.text();
-        }),
-        fetch(publicAsset("sample-100teams-teams.csv")).then(async (x) => {
-          if (!x.ok) throw new Error(`sample-100teams-teams.csv → HTTP ${x.status}`);
-          return x.text();
-        }),
-      ]);
-      setActivityText(a);
-      setRosterText(r);
-      parseTeamLookupCsv(t);
-      setTeamsText(t);
-      const parsed = parseActivityCsv(a);
-      const anchor =
-        parsed
-          .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
-          .map((row) => row.dateStarted!)
-          .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date("2026-04-16T12:00:00Z");
-      setWeekMondayIso(utcMondayIsoFromDate(anchor));
-      setParentOverride("");
-      setFocalOverride("");
-      setRosterTeamFallback("");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(
-        msg.includes("CSV parse")
-          ? `${msg} — try running \`npm run generate:sample-100teams\` to refresh the files in public/.`
-          : `Could not load sample-100teams CSVs from /public. ${msg}`,
-      );
     }
   }, []);
 
@@ -330,37 +284,43 @@ export function AdminPage() {
 
   return (
     <>
-      <header className="border-b border-black/10 bg-tri-forest text-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 sm:flex-row sm:items-end sm:justify-between sm:py-16">
+      <header className="relative overflow-hidden border-b border-black/8 bg-white">
+        <div
+          className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
+          aria-hidden
+        />
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:py-12">
           <div>
-            <p className="font-body text-tri-lead text-white/80">Mentor admin · TRI AI Saturdays League</p>
-            <h1 className="mt-3 font-display text-4xl font-bold leading-[1.1] text-white sm:text-tri-hero">
+            <p className="text-xs text-tri-ink/40">Mentor admin · TRI AI Saturdays League</p>
+            <span className="tri-hero-tag mt-4">Scoreboard controls</span>
+            <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
               Weekly scoreboard controls
             </h1>
-            <p className="mt-4 max-w-xl font-body text-tri-lead text-white/90">
+            <p className="mt-4 max-w-xl font-body text-tri-lead text-tri-ink/70">
               Upload Skills Boost exports, tune the week and focal course, then{" "}
               <strong>publish</strong> so learners only see the curated student view — no raw CSVs or roster
               emails.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="tri-hero-rule" />
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link className="tri-btn-primary" to="/">
                 Open student view
               </Link>
               <a
-                className="tri-btn-outline-hero"
-                href="https://tri-ai.org"
+                className="tri-btn-outline-panel"
+                href="https://aisaturdayslagos.github.io/cohort_structure/cohort10/"
                 target="_blank"
                 rel="noreferrer"
               >
-                tri-ai.org
+                Cohort 10 programme
               </a>
             </div>
           </div>
-          <div className="rounded border border-white/15 bg-white/5 p-5 sm:max-w-xs">
-            <p className="font-nav text-tri-nav font-semibold uppercase tracking-wide text-white/60">Draft week</p>
-            <p className="mt-1 font-display text-2xl font-semibold text-white">{weekLabel}</p>
+          <div className="rounded-tri border border-black/10 bg-tri-mist p-5 sm:max-w-xs">
+            <p className="font-nav text-xs font-semibold uppercase tracking-wide text-tri-ink/45">Draft week</p>
+            <p className="mt-1 font-display text-2xl font-bold text-tri-ink">{weekLabel}</p>
             {latestCourseDate && (
-              <p className="mt-2 font-body text-tri-nav text-white/70">
+              <p className="mt-2 font-body text-tri-nav text-tri-ink/60">
                 Latest course activity (UTC): {latestCourseDate.toISOString().slice(0, 10)}
               </p>
             )}
@@ -392,8 +352,8 @@ export function AdminPage() {
               Each week: upload the <strong>activity</strong> export from Skills Boost, then the{" "}
               <strong>roster or program members</strong> export (emails, Active/Pending, last active — these files do{" "}
               <strong>not</strong> include team names). Team names for the leaderboard come only from the{" "}
-              <strong>Email + Team</strong> file below, or from one shared label if everyone should score in a single
-              team.
+              optional <strong>Email + Team</strong> upload below (overrides the built-in <code>team.csv</code>), or
+              from one shared label when no team assignments apply.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -420,13 +380,13 @@ export function AdminPage() {
                 <span className="mt-1 block font-body text-tri-nav text-tri-ink/60">
                   Expected columns include <strong>Email</strong> and <strong>Status</strong> (e.g. Active / Pending),
                   and usually <strong>Last active</strong>. Google program group members exports match this — there is
-                  no team column; use the team map CSV to assign learners to teams.
+                  no team column; team names come from built-in team.csv unless you upload an override.
                 </span>
               </label>
             </div>
             <label className="mt-4 block">
               <span className="text-xs font-semibold uppercase tracking-wide text-tri-ink/50">
-                Team map CSV (Email + Team)
+                Team map CSV (optional — Email + Team)
               </span>
               <input
                 type="file"
@@ -435,13 +395,23 @@ export function AdminPage() {
                 onChange={(e) => void onTeamsFile(e.target.files?.[0] ?? null)}
               />
               <span className="mt-1 block font-body text-tri-nav text-tri-ink/60">
-                One row per learner: <strong>Email</strong>, <strong>Team</strong>. This is the only place team names
-                are read from. If you skip this file, everyone is placed in the single-team label below (default{" "}
-                <strong>Cohort</strong>).
+                One row per learner: <strong>Email</strong>, <strong>Team</strong>. If you skip this, assignments come
+                from the built-in <strong>team.csv</strong> in the repo. Upload only when you need to override that map.
               </span>
+              {teamMapIsOverride && (
+                <button
+                  type="button"
+                  className="tri-btn-muted mt-2 py-1.5 text-xs"
+                  onClick={() => setTeamsText("")}
+                >
+                  Use built-in team.csv
+                </button>
+              )}
             </label>
             <label className="mt-4 block font-body text-tri-nav">
-              <span className="font-medium text-tri-ink">Single team name (only when you do not upload a team map)</span>
+              <span className="font-medium text-tri-ink">
+                Single team name (only when no team map applies to a learner)
+              </span>
               <input
                 className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
                 placeholder="Leave blank to use “Cohort”"
@@ -467,17 +437,11 @@ export function AdminPage() {
               </div>
             )}
             <div className="mt-4 flex flex-wrap gap-3">
-              <button type="button" className="tri-btn-primary" onClick={() => void loadSamples()}>
+              <button type="button" className="tri-btn-muted" onClick={() => void loadSamples()}>
                 Reload sample week
               </button>
-              <button type="button" className="tri-btn-muted" onClick={() => void loadProgramRosterSample()}>
-                Load program members sample
-              </button>
-              <button type="button" className="tri-btn-muted" onClick={() => void loadTeamsSample()}>
-                Load team map sample
-              </button>
-              <button type="button" className="tri-btn-muted" onClick={() => void load100TeamsSample()}>
-                Load sample (100 teams × 10)
+              <button type="button" className="tri-btn-muted" onClick={() => void loadProgramSample()}>
+                Load program sample
               </button>
               <button type="button" className="tri-btn-muted" onClick={saveWeek} disabled={!metrics.length}>
                 Save snapshot to history
@@ -528,7 +492,7 @@ export function AdminPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded border border-white/10 bg-tri-forest p-6 text-white shadow-tri">
+            <div className="rounded-tri border border-black/10 bg-tri-forest p-6 text-white shadow-tri">
               <h3 className="font-display text-2xl font-semibold text-white">Weekly awards</h3>
               <p className="mt-2 font-body text-tri-nav text-white/75">
                 Compare to a saved snapshot for “Most improved” and “Comeback team”.
@@ -671,11 +635,11 @@ export function AdminPage() {
           />
         </section>
 
-        <footer className="border-t border-neutral-200 bg-tri-night pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
+        <footer className="border-t border-white/10 bg-tri-night pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
           <p>
             Admin tools stay on this route. Raw exports never leave your machine until you choose to publish
             summaries. Student route:{" "}
-            <Link className="font-medium text-tri-leaf no-underline hover:text-tri-mint" to="/">
+            <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
               /
             </Link>
           </p>

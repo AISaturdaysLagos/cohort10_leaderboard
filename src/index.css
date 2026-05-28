@@ -16,24 +16,26 @@ body {
 }
 
 @layer components {
-  /** Matches tri-ai.org .btn-primary */
   .tri-btn-primary {
-    @apply inline-flex items-center justify-center rounded border border-tri-leaf bg-tri-leaf px-6 py-2.5 text-center font-normal text-white shadow-tri transition-colors;
+    @apply inline-flex items-center justify-center rounded-tri border border-tri-leaf bg-tri-leaf px-6 py-2.5 text-center text-sm font-semibold text-white shadow-tri transition-colors;
     @apply hover:border-tri-mint hover:bg-tri-mint;
   }
-  /** Dark hero — .btn-primary-outline (transparent, gold text) */
   .tri-btn-outline-hero {
-    @apply inline-flex items-center justify-center rounded border border-transparent bg-transparent px-6 py-2.5 text-center font-normal text-tri-leaf shadow-none transition-colors;
-    @apply hover:text-tri-mint;
+    @apply inline-flex items-center justify-center rounded-tri border border-tri-orange/25 bg-tri-orange/[0.08] px-6 py-2.5 text-center text-sm font-semibold text-tri-leaf shadow-none transition-colors;
+    @apply hover:border-tri-orange/40 hover:bg-tri-orange/[0.14];
   }
-  /** White section — outline reads as gold link button */
   .tri-btn-outline-panel {
-    @apply inline-flex items-center justify-center rounded border border-tri-leaf bg-transparent px-6 py-2.5 text-center font-normal text-tri-leaf shadow-tri transition-colors;
-    @apply hover:border-tri-mint hover:bg-tri-mint hover:text-white;
+    @apply inline-flex items-center justify-center rounded-tri border border-black/10 bg-transparent px-6 py-2.5 text-center text-sm font-semibold text-tri-ink transition-colors;
+    @apply hover:border-tri-leaf hover:text-tri-leaf;
   }
-  /** Neutral secondary on white (Mobirise “second” control feel) */
   .tri-btn-muted {
-    @apply inline-flex items-center justify-center rounded border border-neutral-300 bg-white px-6 py-2.5 text-center font-normal text-tri-ink shadow-sm transition-colors;
-    @apply hover:border-neutral-400 hover:bg-tri-mist;
+    @apply inline-flex items-center justify-center rounded-tri border border-black/10 bg-white px-6 py-2.5 text-center text-sm font-medium text-tri-ink shadow-sm transition-colors;
+    @apply hover:border-black/20 hover:bg-tri-mist;
+  }
+  .tri-hero-tag {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-tri-orange/25 bg-tri-orange/[0.08] px-3.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wider text-tri-leaf;
+  }
+  .tri-hero-rule {
+    @apply mt-6 h-[3px] w-full max-w-md rounded-full bg-gradient-to-r from-tri-orange via-tri-orange/20 to-transparent;
   }
 }

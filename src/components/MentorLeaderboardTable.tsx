@@ -15,7 +15,7 @@ export function MentorLeaderboardTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-left font-body text-tri-nav">
         <thead>
-          <tr className="border-b border-neutral-200 bg-tri-sand text-xs font-nav uppercase tracking-wide text-tri-ink/50">
+          <tr className="border-b border-black/10 bg-tri-mist text-xs font-nav uppercase tracking-wide text-tri-ink/50">
             <th className="px-4 py-3">#</th>
             <th className="px-4 py-3">Team</th>
             <th className="px-4 py-3">Total</th>
@@ -29,7 +29,7 @@ export function MentorLeaderboardTable({
         </thead>
         <tbody>
           {metrics.map((m, i) => (
-            <tr key={m.team} className={i % 2 === 0 ? "bg-tri-sand" : "bg-tri-mist/50"}>
+            <tr key={m.team} className={i % 2 === 0 ? "bg-white" : "bg-tri-mist/60"}>
               <td className="px-4 py-3 font-medium text-tri-ink/60">{i + 1}</td>
               <td className="px-4 py-3 font-semibold text-tri-forest">{m.team}</td>
               <td className="px-4 py-3 font-display text-lg font-bold text-tri-leaf">{fmt1(m.totalScore)}</td>

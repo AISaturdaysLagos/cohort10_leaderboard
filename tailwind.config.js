@@ -1,50 +1,52 @@
 /** @type {import('tailwindcss').Config} */
-/** Palette & type from https://tri-ai.org (Mobirise theme — assets/mobirise/css/mbr-additional.css) */
+/** Palette & type from https://aisaturdayslagos.github.io/cohort_structure/cohort10/ */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
         tri: {
-          /** headings, hero, dark UI */
-          forest: "#2b282c",
-          /** primary “text-primary” / buttons */
-          leaf: "#dba738",
+          /** page chrome, headings, footer */
+          forest: "#0a0a0a",
+          /** primary accent (orange) */
+          leaf: "#e05508",
           /** primary hover */
-          mint: "#be8c22",
-          /** card / subtle fills (contacts card-wrapper) */
-          mist: "#fafafa",
+          mint: "#c94d07",
+          /** card / panel fill */
+          mist: "#fdf6eb",
           sand: "#ffffff",
           /** body copy */
-          ink: "#232323",
-          /** same as primary — badge accents */
-          gold: "#dba738",
-          /** Bootstrap “success” on tri-ai template */
-          teal: "#40b0bf",
-          /** footer strip .cid-s48P1Icc8J */
-          night: "#232323",
+          ink: "#0a0a0a",
+          /** logo “AI” gold */
+          gold: "#D4A017",
+          /** bright orange (dark UI, dots) */
+          orange: "#FE6612",
+          /** footer strip */
+          night: "#0a0a0a",
+          /** elevated surface */
+          surface: "#fdf6eb",
+          /** cohort10 success green */
+          green: "#16a34a",
         },
       },
       fontFamily: {
-        sans: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
-        display: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
-        body: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
-        nav: ["Arial Narrow", "system-ui", "sans-serif"],
+        sans: ['"Plus Jakarta Sans"', "Inter", "system-ui", "-apple-system", "sans-serif"],
+        display: ['"Plus Jakarta Sans"', "Inter", "system-ui", "-apple-system", "sans-serif"],
+        body: ['"Plus Jakarta Sans"', "Inter", "system-ui", "-apple-system", "sans-serif"],
+        nav: ['"Plus Jakarta Sans"', "Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       fontSize: {
-        /** Mobirise .display-1 */
-        "tri-hero": ["3.5rem", { lineHeight: "1.1" }],
-        /** .display-2 */
-        "tri-section": ["2.5rem", { lineHeight: "1.1" }],
-        /** .display-7 */
-        "tri-lead": ["1.2rem", { lineHeight: "1.5" }],
-        /** .display-4 — nav */
-        "tri-nav": ["1.1rem", { lineHeight: "1.5" }],
+        "tri-hero": ["3.6rem", { lineHeight: "1.02", letterSpacing: "-0.04em" }],
+        "tri-section": ["2.5rem", { lineHeight: "1.1", letterSpacing: "-0.02em" }],
+        "tri-lead": ["1rem", { lineHeight: "1.65" }],
+        "tri-nav": ["0.9rem", { lineHeight: "1.5" }],
+      },
+      borderRadius: {
+        tri: "0.4375rem",
       },
       boxShadow: {
-        /** Mobirise .btn primary */
-        tri: "0 2px 2px 0 rgba(0, 0, 0, 0.2)",
-        card: "0 1px 3px 0 rgba(0, 0, 0, 0.08)",
+        tri: "0 1px 2px rgba(10, 10, 10, 0.08)",
+        card: "0 1px 3px rgba(10, 10, 10, 0.06)",
       },
     },
   },

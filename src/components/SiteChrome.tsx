@@ -1,29 +1,26 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { TRI_AI_LOGO_URL } from "../lib/triAiBrand";
+import { COHORT10_URL } from "../lib/triAiBrand";
+import { TriAiLogo } from "./TriAiLogo";
 
 export function SiteChrome() {
   return (
     <div className="min-h-screen bg-tri-sand">
-      <div className="sticky top-0 z-[1000] w-full border-b border-neutral-200 bg-tri-sand">
-        <div className="mx-auto flex min-h-[60px] max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
-          <Link to="/" className="flex flex-shrink-0 items-center gap-3 no-underline">
-            <img
-              src={TRI_AI_LOGO_URL}
-              alt="TRI AI"
-              className="h-[3.05rem] w-auto sm:h-[3.8rem]"
-              height="121"
-              width="121"
-              loading="lazy"
-              decoding="async"
-            />
-            <span className="font-nav text-tri-nav text-tri-leaf">TRI AI</span>
-            <span className="hidden font-body text-sm text-tri-ink/80 sm:inline">Saturdays League</span>
+      <header className="sticky top-0 z-[1000] w-full border-b border-black/8 bg-white">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
+          <Link to="/" className="flex min-w-0 flex-shrink items-center gap-3 no-underline">
+            <TriAiLogo height={40} showTagline />
+            <span className="hidden h-4 w-px bg-black/15 sm:block" aria-hidden />
+            <span className="hidden font-sans text-sm font-medium text-tri-ink/55 sm:inline">
+              Saturdays League
+            </span>
           </Link>
-          <nav className="flex flex-wrap items-center gap-4 font-nav text-tri-nav sm:gap-6">
+          <nav className="flex flex-wrap items-center gap-1 font-sans text-sm sm:gap-0">
             <NavLink
               to="/"
               className={({ isActive }) =>
-                `text-black no-underline transition-colors hover:text-tri-leaf ${isActive ? "font-medium text-tri-leaf" : "font-normal text-tri-ink"}`
+                `rounded-tri px-3 py-2 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink ${
+                  isActive ? "font-semibold text-tri-leaf" : "font-medium text-tri-ink/60"
+                }`
               }
               end
             >
@@ -32,22 +29,24 @@ export function SiteChrome() {
             <NavLink
               to="/admin"
               className={({ isActive }) =>
-                `text-black no-underline transition-colors hover:text-tri-leaf ${isActive ? "font-medium text-tri-leaf" : "font-normal text-tri-ink"}`
+                `rounded-tri px-3 py-2 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink ${
+                  isActive ? "font-semibold text-tri-leaf" : "font-medium text-tri-ink/60"
+                }`
               }
             >
               Mentors
             </NavLink>
             <a
-              className="text-black no-underline transition-colors hover:text-tri-leaf"
-              href="https://tri-ai.org"
+              className="rounded-tri px-3 py-2 font-medium text-tri-ink/60 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink"
+              href={COHORT10_URL}
               target="_blank"
               rel="noreferrer"
             >
-              tri-ai.org
+              Cohort 10
             </a>
           </nav>
         </div>
-      </div>
+      </header>
       <Outlet />
     </div>
   );

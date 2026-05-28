@@ -52,21 +52,32 @@ export function StudentPage() {
 
   return (
     <>
-      <header className="border-b border-black/10 bg-tri-forest text-white">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-          <p className="font-body text-sm text-white/80 sm:text-tri-nav">TRI AI · AI Saturdays League</p>
-          <h1 className="mt-2 max-w-3xl font-display text-3xl font-bold leading-[1.1] text-white sm:mt-3 sm:text-4xl">
+      <header className="relative overflow-hidden border-b border-black/8 bg-white">
+        <div
+          className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
+          aria-hidden
+        />
+        <div className="relative mx-auto max-w-6xl px-4 py-10 sm:py-12">
+          <p className="text-xs text-tri-ink/40">TRI AI Saturdays · League</p>
+          <span className="tri-hero-tag mt-4">Weekly leaderboard</span>
+          <h1 className="mt-4 max-w-3xl font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
             Team leaderboard
           </h1>
-          <p className="mt-3 max-w-2xl font-body text-base leading-snug text-white/90 sm:text-tri-lead">
+          <p className="mt-3 max-w-2xl font-body text-tri-lead text-tri-ink/70">
             Weekly scores from Skills Boost activity — completion, understanding, participation, effort, and
             consistency. Fair across team sizes; resets every week.
           </p>
-          <div className="mt-5 flex flex-wrap items-center gap-3 sm:mt-6">
-            <a className="tri-btn-primary" href="https://tri-ai.org" target="_blank" rel="noreferrer">
-              About TRI AI
+          <div className="tri-hero-rule" />
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <a
+              className="tri-btn-primary"
+              href="https://aisaturdayslagos.github.io/cohort_structure/cohort10/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Cohort 10 programme
             </a>
-            <Link className="tri-btn-outline-hero" to="/admin">
+            <Link className="tri-btn-outline-panel" to="/admin">
               Mentors
             </Link>
           </div>
@@ -80,7 +91,7 @@ export function StudentPage() {
           </div>
         )}
         {!loading && !data && (
-          <div className="rounded border border-dashed border-neutral-300 bg-tri-sand p-10 text-center shadow-card">
+          <div className="rounded-tri border border-dashed border-black/15 bg-tri-mist/50 p-10 text-center shadow-card">
             <h2 className="font-display text-tri-section text-tri-forest">Leaderboard coming soon</h2>
             <p className="mx-auto mt-4 max-w-md font-body text-tri-lead text-tri-ink/80">
               This week&apos;s team scores are not posted yet. Check back after your Saturday session — your
@@ -91,7 +102,7 @@ export function StudentPage() {
 
         {!loading && data && (
           <>
-            <section className="flex flex-col gap-4 rounded border border-neutral-200 bg-tri-sand p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-4 rounded-tri border border-black/10 bg-tri-mist p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">
                   This week
@@ -134,7 +145,7 @@ export function StudentPage() {
               </div>
             </section>
 
-            <section className="rounded border border-neutral-200 bg-tri-sand p-8 font-body text-tri-lead text-tri-ink/85">
+            <section className="rounded-tri border border-black/10 bg-tri-mist p-8 font-body text-tri-lead text-tri-ink/85">
               <h3 className="font-display text-2xl text-tri-forest">How your team earns points</h3>
               <ul className="mt-4 list-disc space-y-2 pl-5 leading-relaxed">
                 <li>
@@ -162,12 +173,17 @@ export function StudentPage() {
         )}
       </main>
 
-      <footer className="bg-tri-night px-4 py-10 text-center font-body text-tri-nav text-white/75">
+      <footer className="border-t border-white/10 bg-tri-night px-4 py-10 text-center font-body text-tri-nav text-white/75">
         <p>
-          <a className="font-medium text-tri-leaf no-underline hover:text-tri-mint" href="https://tri-ai.org" target="_blank" rel="noreferrer">
-            TRI AI
+          <a
+            className="font-semibold text-tri-orange no-underline hover:text-tri-leaf"
+            href="https://tri-ai.org"
+            target="_blank"
+            rel="noreferrer"
+          >
+            triAI
           </a>{" "}
-          — Teaching, Research and Innovation in Artificial Intelligence.
+          — Teaching · Research · Innovation
         </p>
       </footer>
     </>
@@ -176,7 +192,7 @@ export function StudentPage() {
 
 function StudentAward({ title, emoji, teams }: { title: string; emoji: string; teams: string[] }) {
   return (
-    <li className="flex gap-4 rounded border border-neutral-200 bg-tri-sand p-5 shadow-card">
+    <li className="flex gap-4 rounded-tri border border-black/10 bg-white p-5 shadow-card">
       <span className="text-2xl leading-none" aria-hidden>
         {emoji}
       </span>
@@ -191,8 +207,8 @@ function StudentAward({ title, emoji, teams }: { title: string; emoji: string; t
 function StudentTeamRow({ rank, m }: { rank: number; m: TeamMetricBreakdown }) {
   const mdl = medal(rank);
   return (
-    <article className="overflow-hidden rounded border border-neutral-200 bg-tri-sand shadow-card">
-      <div className="flex flex-col gap-4 border-b border-neutral-200 bg-tri-mist px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <article className="overflow-hidden rounded-tri border border-black/10 bg-white shadow-card">
+      <div className="flex flex-col gap-4 border-b border-black/10 bg-tri-mist px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded bg-tri-leaf font-display text-xl font-semibold text-white shadow-tri">
             {mdl ? <span title={`Rank ${rank}`}>{mdl}</span> : <span>{rank}</span>}
@@ -252,7 +268,7 @@ function ScorePill({
 }) {
   const pctBar = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="rounded border border-neutral-200 bg-tri-sand p-3">
+    <div className="rounded-tri border border-black/10 bg-white p-3">
       <p className="font-nav text-[10px] font-bold uppercase tracking-wide text-tri-ink/50">{label}</p>
       <p className="mt-1 font-semibold text-tri-forest">
         {fmt1(value)} <span className="text-xs font-normal text-tri-ink/50">/ {max}</span>

@@ -283,8 +283,8 @@ export function AdminPage() {
   };
 
   return (
-    <>
-      <header className="relative overflow-hidden border-b border-black/8 bg-white">
+    <div className="flex flex-1 flex-col">
+      <header className="relative shrink-0 overflow-hidden border-b border-black/8 bg-white">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
           aria-hidden
@@ -328,7 +328,7 @@ export function AdminPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-10 px-4 py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-10">
         {publishMsg && (
           <div className="rounded border border-tri-leaf/40 bg-tri-mist px-4 py-3 font-body text-tri-nav text-tri-forest">
             {publishMsg}
@@ -635,17 +635,18 @@ export function AdminPage() {
           />
         </section>
 
-        <footer className="border-t border-white/10 bg-tri-night pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
-          <p>
-            Admin tools stay on this route. Raw exports never leave your machine until you choose to publish
-            summaries. Student route:{" "}
-            <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
-              /
-            </Link>
-          </p>
-        </footer>
       </main>
-    </>
+
+      <footer className="mt-auto shrink-0 border-t border-white/10 bg-tri-night px-4 pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
+        <p>
+          Admin tools stay on this route. Raw exports never leave your machine until you choose to publish
+          summaries. Student route:{" "}
+          <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
+            /
+          </Link>
+        </p>
+      </footer>
+    </div>
   );
 }
 

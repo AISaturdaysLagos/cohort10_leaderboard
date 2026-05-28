@@ -4,8 +4,8 @@ import { TriAiLogo } from "./TriAiLogo";
 
 export function SiteChrome() {
   return (
-    <div className="min-h-screen bg-tri-sand">
-      <header className="sticky top-0 z-[1000] w-full border-b border-black/8 bg-white">
+    <div className="flex min-h-full flex-1 flex-col bg-tri-sand">
+      <header className="sticky top-0 z-[1000] w-full shrink-0 border-b border-black/8 bg-white">
         <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
           <Link to="/" className="flex min-w-0 flex-shrink items-center gap-3 no-underline">
             <TriAiLogo height={40} showTagline />
@@ -47,7 +47,9 @@ export function SiteChrome() {
           </nav>
         </div>
       </header>
-      <Outlet />
+      <div className="flex flex-1 flex-col">
+        <Outlet />
+      </div>
     </div>
   );
 }

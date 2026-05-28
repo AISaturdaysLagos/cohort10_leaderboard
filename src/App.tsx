@@ -20,23 +20,25 @@ function RouteFallback() {
 
 export default function App() {
   return (
-    <BrowserRouter basename={routerBasename || undefined}>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<SiteChrome />}>
-            <Route index element={<StudentPage />} />
-            <Route
-              path="admin"
-              element={
-                <AdminGate>
-                  <AdminPage />
-                </AdminGate>
-              }
-            />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <div className="flex min-h-full flex-1 flex-col">
+      <BrowserRouter basename={routerBasename || undefined}>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<SiteChrome />}>
+              <Route index element={<StudentPage />} />
+              <Route
+                path="admin"
+                element={
+                  <AdminGate>
+                    <AdminPage />
+                  </AdminGate>
+                }
+              />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </div>
   );
 }

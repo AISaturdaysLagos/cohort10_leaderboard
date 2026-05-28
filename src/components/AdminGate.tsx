@@ -37,7 +37,7 @@ export function AdminGate({ children }: Props) {
 
   if (!isAdminPasswordConfigured()) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16">
         <div className="rounded border border-neutral-200 bg-tri-sand p-8 text-center shadow-card">
           <h1 className="font-display text-2xl text-tri-forest">Mentor area unavailable</h1>
           <p className="mt-4 font-body text-tri-lead text-tri-ink/80">
@@ -53,7 +53,7 @@ export function AdminGate({ children }: Props) {
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-16">
         <div className="rounded border border-neutral-200 bg-tri-sand p-8 shadow-card">
           <h1 className="font-display text-2xl text-tri-forest">Mentor sign-in</h1>
           <p className="mt-3 font-body text-tri-lead text-tri-ink/75">
@@ -97,8 +97,8 @@ function AdminAuthedShell({
   onLogout: () => void;
 }) {
   return (
-    <>
-      <div className="border-b border-neutral-200 bg-tri-mist">
+    <div className="flex flex-1 flex-col">
+      <div className="shrink-0 border-b border-neutral-200 bg-tri-mist">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-3 px-4 py-2">
           <span className="font-body text-xs text-tri-ink/55">Signed in as mentor</span>
           <button type="button" className="tri-btn-muted py-1.5 text-sm" onClick={onLogout}>
@@ -107,6 +107,6 @@ function AdminAuthedShell({
         </div>
       </div>
       {children}
-    </>
+    </div>
   );
 }

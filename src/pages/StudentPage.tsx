@@ -51,8 +51,8 @@ export function StudentPage() {
   const awards = data?.awards;
 
   return (
-    <>
-      <header className="relative overflow-hidden border-b border-black/8 bg-white">
+    <div className="flex flex-1 flex-col">
+      <header className="relative shrink-0 overflow-hidden border-b border-black/8 bg-white">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
           aria-hidden
@@ -84,7 +84,7 @@ export function StudentPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-12 px-4 py-12">
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-12 px-4 py-12">
         {loading && (
           <div className="rounded border border-neutral-200 bg-tri-sand p-10 text-center shadow-card">
             <p className="font-body text-tri-lead text-tri-ink/70">Loading leaderboard…</p>
@@ -173,7 +173,7 @@ export function StudentPage() {
         )}
       </main>
 
-      <footer className="border-t border-white/10 bg-tri-night px-4 py-10 text-center font-body text-tri-nav text-white/75">
+      <footer className="mt-auto shrink-0 border-t border-white/10 bg-tri-night px-4 py-10 text-center font-body text-tri-nav text-white/75">
         <p>
           <a
             className="font-semibold text-tri-orange no-underline hover:text-tri-leaf"
@@ -186,7 +186,7 @@ export function StudentPage() {
           — Teaching · Research · Innovation
         </p>
       </footer>
-    </>
+    </div>
   );
 }
 

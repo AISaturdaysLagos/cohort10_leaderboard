@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { COHORT10_URL } from "../lib/triAiBrand";
+import { COHORT10_URL, TRI_AI_ORG_URL } from "../lib/triAiBrand";
 import { TriAiLogo } from "./TriAiLogo";
 
 export function SiteChrome() {
@@ -32,6 +32,14 @@ export function SiteChrome() {
             >
               Admin
             </NavLink>
+            <a
+              className="rounded-tri px-3 py-2 font-medium text-tri-ink/60 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink"
+              href={TRI_AI_ORG_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              TRI AI
+            </a>
             <a
               className="rounded-tri px-3 py-2 font-medium text-tri-ink/60 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink"
               href={COHORT10_URL}

@@ -37,12 +37,9 @@ export function TriAiLogo({ height = 40, className = "", showTagline = false }: 
         <circle cx="114" cy="74" r="4" fill="#2ECDB8" />
       </svg>
       {showTagline && (
-        <>
-          <span className="hidden h-4 w-px bg-black/15 sm:block" aria-hidden />
-          <span className="hidden font-sans text-[0.8rem] font-medium text-tri-ink/35 sm:inline">
-            Teaching · Research · Innovation
-          </span>
-        </>
+        <span className="hidden font-sans text-[0.8rem] font-medium leading-snug text-tri-ink/35 sm:inline">
+          Teaching · Research · Innovation · AI Saturdays League
+        </span>
       )}
     </span>
   );

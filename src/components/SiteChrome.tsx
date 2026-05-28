@@ -4,15 +4,11 @@ import { TriAiLogo } from "./TriAiLogo";
 
 export function SiteChrome() {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-tri-sand">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col bg-tri-sand">
       <header className="sticky top-0 z-[1000] w-full shrink-0 border-b border-black/8 bg-white">
         <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
-          <Link to="/" className="flex min-w-0 flex-shrink items-center gap-3 no-underline">
+          <Link to="/" className="flex min-w-0 flex-shrink items-center gap-2.5 no-underline">
             <TriAiLogo height={40} showTagline />
-            <span className="hidden h-4 w-px bg-black/15 sm:block" aria-hidden />
-            <span className="hidden font-sans text-sm font-medium text-tri-ink/55 sm:inline">
-              Saturdays League
-            </span>
           </Link>
           <nav className="flex flex-wrap items-center gap-1 font-sans text-sm sm:gap-0">
             <NavLink
@@ -34,7 +30,7 @@ export function SiteChrome() {
                 }`
               }
             >
-              Mentors
+              Admin
             </NavLink>
             <a
               className="rounded-tri px-3 py-2 font-medium text-tri-ink/60 no-underline transition-colors hover:bg-black/5 hover:text-tri-ink"
@@ -47,7 +43,7 @@ export function SiteChrome() {
           </nav>
         </div>
       </header>
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </div>
     </div>

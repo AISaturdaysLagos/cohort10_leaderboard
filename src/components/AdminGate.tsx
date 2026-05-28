@@ -97,7 +97,7 @@ function AdminAuthedShell({
   onLogout: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-neutral-200 bg-tri-mist">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-3 px-4 py-2">
           <span className="font-body text-xs text-tri-ink/55">Signed in as mentor</span>

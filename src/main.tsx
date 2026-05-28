@@ -12,7 +12,9 @@ if (!rootEl) {
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <App />
+      </div>
     </ErrorBoundary>
   </StrictMode>,
 );

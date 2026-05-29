@@ -11,7 +11,9 @@ After the deploy workflow runs on `main`:
 - Student leaderboard: `/`
 - Admin: `/admin`
 
-Published scores use `localStorage` in the browser (mentor publishes from admin on the same device or cohort).
+Published scores are stored in **Firebase Firestore** when configured (all students see the same board). Without Firebase, the app falls back to **localStorage** in the browser for local development only.
+
+Setup: [`docs/FIREBASE.md`](docs/FIREBASE.md)
 
 ## Local development
 
@@ -24,15 +26,11 @@ Open the URL Vite prints (usually **http://localhost:5173/**). If the page hangs
 
 If you previously published the **100 teams** sample, clear site data for localhost (DevTools → Application → Local Storage) if the page feels frozen.
 
-### Admin password
+### Admin sign-in
 
-1. Copy `.env.example` to `.env.local`.
-2. Set `VITE_ADMIN_PASSWORD` to a strong mentor-only password.
-3. Restart the dev server (`npm run dev:clean`).
+**Production (Firebase):** follow [`docs/FIREBASE.md`](docs/FIREBASE.md) — mentors sign in at `/admin` with a Firebase Email/Password user. Publishing writes to Firestore; students worldwide see the update.
 
-For GitHub Pages, add repo secret **`ADMIN_PASSWORD`** (Settings → Secrets and variables → Actions). The deploy workflow passes it into the build.
-
-`/admin` shows a sign-in form; the session lasts until the browser tab is closed. The student page stays public. This is a client-side gate suitable for a static site — not enterprise SSO.
+**Local-only fallback:** copy `.env.example` to `.env.local` and set `VITE_ADMIN_PASSWORD` (leave Firebase vars empty). Restart with `npm run dev:clean`.
 
 ### Preview the Pages build locally
 
@@ -49,6 +47,8 @@ Open http://localhost:4173/cohort10_leaderboard/
 2. Push to `main` (or run the **Deploy to GitHub Pages** workflow manually).
 
 The workflow [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds with base path `/cohort10_leaderboard/` and deploys `dist/` to Pages.
+
+Add Firebase repository secrets for production — see [`docs/FIREBASE.md`](docs/FIREBASE.md).
 
 If the repository is renamed, update `VITE_BASE_PATH` in the workflow and `GITHUB_PAGES_BASE` in [`vite.config.ts`](vite.config.ts).
 

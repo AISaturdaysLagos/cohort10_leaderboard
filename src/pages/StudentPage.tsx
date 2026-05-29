@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { loadPublished, PUBLISH_EVENT, PUBLISHED_STORAGE_KEY, type PublishedLeaderboard } from "../lib/published";
+import { subscribePublished, type PublishedLeaderboard } from "../lib/published";
 import { fmt1, formatAwardTeams, pct } from "../lib/format";
 import { METRICS } from "../lib/metrics.constants";
 import type { TeamMetricBreakdown } from "../types";
@@ -24,28 +24,23 @@ function publishedAtLabel(iso: string): string {
 export function StudentPage() {
   const [data, setData] = useState<PublishedLeaderboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    setData(loadPublished());
-    setLoading(false);
+  useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+    const unsub = subscribePublished(
+      (published) => {
+        setData(published);
+        setLoading(false);
+      },
+      (err) => {
+        setLoadError(err.message);
+        setLoading(false);
+      },
+    );
+    return unsub;
   }, []);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => refresh(), 0);
-    return () => window.clearTimeout(id);
-  }, [refresh]);
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === PUBLISHED_STORAGE_KEY || e.key === null) refresh();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(PUBLISH_EVENT, refresh);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(PUBLISH_EVENT, refresh);
-    };
-  }, [refresh]);
 
   const metrics = data?.metrics ?? [];
   const awards = data?.awards;
@@ -85,6 +80,11 @@ export function StudentPage() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-12 px-4 py-12">
+        {loadError && (
+          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 font-body text-sm text-red-900">
+            Could not load the leaderboard: {loadError}
+          </div>
+        )}
         {loading && (
           <div className="rounded border border-neutral-200 bg-tri-sand p-10 text-center shadow-card">
             <p className="font-body text-tri-lead text-tri-ink/70">Loading leaderboard…</p>

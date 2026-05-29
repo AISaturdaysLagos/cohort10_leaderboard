@@ -48,6 +48,15 @@ export type WeeklyAwards = {
   comebackTeam: string[];
 };
 
+export type PublishedLeaderboard = {
+  version: 1;
+  weekLabel: string;
+  focalActivity: string;
+  metrics: TeamMetricBreakdown[];
+  awards: WeeklyAwards;
+  publishedAt: string;
+};
+
 export type StoredWeekSnapshot = {
   weekId: string;
   weekLabel: string;

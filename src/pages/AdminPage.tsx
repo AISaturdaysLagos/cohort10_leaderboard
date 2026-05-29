@@ -25,7 +25,7 @@ import {
 import { MentorLeaderboardTable } from "../components/MentorLeaderboardTable";
 import { WeekPicker } from "../components/WeekPicker";
 import { deleteHistoryEntry, loadHistory, saveHistoryEntry, type HistoryEntry } from "../lib/history";
-import { savePublished } from "../lib/published";
+import { savePublishedBoard, usesFirebasePublished } from "../lib/published";
 import { fmt1, formatAwardTeams, formatSavedAt } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
@@ -37,6 +37,7 @@ export function AdminPage() {
   const [rosterText, setRosterText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [weekMondayIso, setWeekMondayIso] = useState("2026-04-14");
   const [parentOverride, setParentOverride] = useState("");
   const [focalOverride, setFocalOverride] = useState("");
@@ -275,11 +276,23 @@ export function AdminPage() {
     setViewHistoryId(id);
   };
 
-  const publishToStudents = () => {
-    if (!focalActivity || !metrics.length) return;
-    savePublished({ weekLabel, focalActivity, metrics, awards });
-    setPublishMsg("Students now see this board on the home page.");
-    window.setTimeout(() => setPublishMsg(null), 5000);
+  const publishToStudents = async () => {
+    if (!focalActivity || !metrics.length || publishing) return;
+    setError(null);
+    setPublishing(true);
+    try {
+      await savePublishedBoard({ weekLabel, focalActivity, metrics, awards });
+      setPublishMsg(
+        usesFirebasePublished()
+          ? "Published to Firebase — all students on the live site can see this board."
+          : "Saved locally — students on this browser can see this board.",
+      );
+      window.setTimeout(() => setPublishMsg(null), 6000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not publish the leaderboard.");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -449,10 +462,10 @@ export function AdminPage() {
               <button
                 type="button"
                 className="tri-btn-primary disabled:opacity-40"
-                onClick={publishToStudents}
-                disabled={!metrics.length}
+                onClick={() => void publishToStudents()}
+                disabled={!metrics.length || publishing}
               >
-                Publish to student page
+                {publishing ? "Publishing…" : "Publish to student page"}
               </button>
             </div>
             <WeekPicker
@@ -639,8 +652,11 @@ export function AdminPage() {
 
       <footer className="mt-auto shrink-0 border-t border-white/10 bg-tri-night px-4 pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
         <p>
-          Admin tools stay on this route. Raw exports never leave your machine until you choose to publish
-          summaries. Student route:{" "}
+          Admin tools stay on this route. Raw exports never leave your machine until you publish
+          {usesFirebasePublished()
+            ? " summaries to Firebase."
+            : " summaries (local browser only until Firebase is configured)."}{" "}
+          Student route:{" "}
           <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
             /
           </Link>

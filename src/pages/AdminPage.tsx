@@ -297,19 +297,19 @@ export function AdminPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="relative shrink-0 overflow-hidden border-b border-black/8 bg-white">
+      <header className="relative shrink-0 overflow-hidden border-b border-tri-border bg-tri-chrome transition-colors">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
           aria-hidden
         />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:py-12">
           <div>
-            <p className="text-xs text-tri-ink/40">Mentor admin · TRI AI Saturdays League</p>
+            <p className="text-xs text-tri-faint">Mentor admin · TRI AI Saturdays League</p>
             <span className="tri-hero-tag mt-4">Scoreboard controls</span>
             <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
               Weekly scoreboard controls
             </h1>
-            <p className="mt-4 max-w-xl font-body text-tri-lead text-tri-ink/70">
+            <p className="mt-4 max-w-xl font-body text-tri-lead text-tri-muted">
               Upload Skills Boost exports, tune the week and focal course, then{" "}
               <strong>publish</strong> so learners only see the curated student view — no raw CSVs or roster
               emails.
@@ -329,11 +329,11 @@ export function AdminPage() {
               </a>
             </div>
           </div>
-          <div className="rounded-tri border border-black/10 bg-tri-mist p-5 sm:max-w-xs">
-            <p className="font-nav text-xs font-semibold uppercase tracking-wide text-tri-ink/45">Draft week</p>
+          <div className="rounded-tri border border-tri-border bg-tri-mist p-5 sm:max-w-xs">
+            <p className="font-nav text-xs font-semibold uppercase tracking-wide text-tri-faint">Draft week</p>
             <p className="mt-1 font-display text-2xl font-bold text-tri-ink">{weekLabel}</p>
             {latestCourseDate && (
-              <p className="mt-2 font-body text-tri-nav text-tri-ink/60">
+              <p className="mt-2 font-body text-tri-nav text-tri-muted">
                 Latest course activity (UTC): {latestCourseDate.toISOString().slice(0, 10)}
               </p>
             )}
@@ -348,7 +348,7 @@ export function AdminPage() {
           </div>
         )}
         {error && (
-          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 font-body text-sm text-red-900">
+          <div className="rounded border tri-alert-error">
             {error}
           </div>
         )}
@@ -359,9 +359,9 @@ export function AdminPage() {
         )}
 
         <section className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded border border-neutral-200 bg-tri-sand p-6 shadow-card lg:col-span-2">
+          <div className="rounded border border-tri-border bg-tri-sand p-6 shadow-card lg:col-span-2">
             <h2 className="font-display text-tri-section text-tri-forest">Data & week scope</h2>
-            <p className="mt-3 font-body text-tri-lead text-tri-ink/80">
+            <p className="mt-3 font-body text-tri-lead text-tri-muted">
               Each week: upload the <strong>activity</strong> export from Skills Boost, then the{" "}
               <strong>roster or program members</strong> export (emails, Active/Pending, last active — these files do{" "}
               <strong>not</strong> include team names). Team names for the leaderboard come only from the{" "}
@@ -370,7 +370,7 @@ export function AdminPage() {
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-tri-ink/50">
+                <span className="text-xs font-semibold uppercase tracking-wide text-tri-faint">
                   Activity CSV
                 </span>
                 <input
@@ -381,7 +381,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-tri-ink/50">
+                <span className="text-xs font-semibold uppercase tracking-wide text-tri-faint">
                   Roster / program members (no teams in this file)
                 </span>
                 <input
@@ -390,7 +390,7 @@ export function AdminPage() {
                   className="mt-2 block w-full text-sm"
                   onChange={(e) => void onRosterFile(e.target.files?.[0] ?? null)}
                 />
-                <span className="mt-1 block font-body text-tri-nav text-tri-ink/60">
+                <span className="mt-1 block font-body text-tri-nav text-tri-muted">
                   Expected columns include <strong>Email</strong> and <strong>Status</strong> (e.g. Active / Pending),
                   and usually <strong>Last active</strong>. Google program group members exports match this — there is
                   no team column; team names come from built-in team.csv unless you upload an override.
@@ -398,7 +398,7 @@ export function AdminPage() {
               </label>
             </div>
             <label className="mt-4 block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-tri-ink/50">
+              <span className="text-xs font-semibold uppercase tracking-wide text-tri-faint">
                 Team map CSV (optional — Email + Team)
               </span>
               <input
@@ -407,7 +407,7 @@ export function AdminPage() {
                 className="mt-2 block w-full text-sm"
                 onChange={(e) => void onTeamsFile(e.target.files?.[0] ?? null)}
               />
-              <span className="mt-1 block font-body text-tri-nav text-tri-ink/60">
+              <span className="mt-1 block font-body text-tri-nav text-tri-muted">
                 One row per learner: <strong>Email</strong>, <strong>Team</strong>. If you skip this, assignments come
                 from the built-in <strong>team.csv</strong> in the repo. Upload only when you need to override that map.
               </span>
@@ -426,7 +426,7 @@ export function AdminPage() {
                 Single team name (only when no team map applies to a learner)
               </span>
               <input
-                className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
+                className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
                 placeholder="Leave blank to use “Cohort”"
                 value={rosterTeamFallback}
                 onChange={(e) => setRosterTeamFallback(e.target.value)}
@@ -436,12 +436,12 @@ export function AdminPage() {
               <div className="mt-4 rounded border border-tri-leaf/35 bg-tri-mist px-4 py-3 font-body text-sm leading-relaxed text-tri-ink">
                 {rows.length > 0 && <p>{activitySummary}</p>}
                 {roster.length > 0 && (
-                  <p className={rows.length > 0 ? "mt-2 border-t border-neutral-200 pt-2" : ""}>{rosterSummary}</p>
+                  <p className={rows.length > 0 ? "mt-2 border-t border-tri-border pt-2" : ""}>{rosterSummary}</p>
                 )}
                 {teamLookup.size > 0 && (
                   <p
                     className={
-                      rows.length > 0 || roster.length > 0 ? "mt-2 border-t border-neutral-200 pt-2" : ""
+                      rows.length > 0 || roster.length > 0 ? "mt-2 border-t border-tri-border pt-2" : ""
                     }
                   >
                     {teamSummary}
@@ -476,7 +476,7 @@ export function AdminPage() {
             <label className="mt-4 block font-body text-tri-nav">
               <span className="font-medium text-tri-ink">Parent learning path (override)</span>
               <input
-                className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
+                className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
                 placeholder={inferredParentWeek ?? inferredParentGlobal ?? "Detected automatically"}
                 value={parentOverride}
                 onChange={(e) => setParentOverride(e.target.value)}
@@ -485,7 +485,7 @@ export function AdminPage() {
             <label className="mt-4 block font-body text-tri-nav">
               <span className="font-medium text-tri-ink">Week focal course</span>
               <select
-                className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
+                className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
                 value={focalOverride || inferredFocal || ""}
                 onChange={(e) => setFocalOverride(e.target.value)}
               >
@@ -497,7 +497,7 @@ export function AdminPage() {
                 ))}
               </select>
             </label>
-            <p className="mt-2 font-body text-tri-nav text-tri-ink/60">
+            <p className="mt-2 font-body text-tri-nav text-tri-muted">
               Publishing writes the current metrics and awards to this browser&apos;s local storage under a
               dedicated key, so the student route can stay read-only. For a shared URL across devices, host the
               built app and add a small backend later.
@@ -505,16 +505,16 @@ export function AdminPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-tri border border-black/10 bg-tri-forest p-6 text-white shadow-tri">
-              <h3 className="font-display text-2xl font-semibold text-white">Weekly awards</h3>
-              <p className="mt-2 font-body text-tri-nav text-white/75">
+            <div className="rounded-tri border border-tri-border-md bg-tri-panel p-6 shadow-tri">
+              <h3 className="font-display text-2xl font-semibold text-tri-ink">Weekly awards</h3>
+              <p className="mt-2 font-body text-tri-nav text-tri-muted">
                 Compare to a saved snapshot for “Most improved” and “Comeback team”.
               </p>
-              <label className="mt-4 block font-nav text-tri-nav font-semibold uppercase tracking-wide text-white/60">
+              <label className="mt-4 block font-nav text-tri-nav font-semibold uppercase tracking-wide text-tri-faint">
                 Compare awards to
               </label>
               <select
-                className="mt-1 w-full rounded border border-white/20 bg-white/10 px-3 py-2 font-body text-tri-nav text-white"
+                className="mt-1 w-full rounded border border-tri-border-md bg-tri-input-bg px-3 py-2 font-body text-tri-nav text-tri-ink"
                 value={compareId}
                 onChange={(e) => setCompareId(e.target.value)}
               >
@@ -540,20 +540,20 @@ export function AdminPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded border border-neutral-200 bg-tri-sand shadow-card">
-          <div className="border-b border-neutral-200 bg-tri-mist px-6 py-4">
+        <section className="overflow-hidden rounded border border-tri-border bg-tri-sand shadow-card">
+          <div className="border-b border-tri-border bg-tri-mist px-6 py-4">
             <h2 className="font-display text-tri-section text-tri-forest">Saved week snapshots</h2>
-            <p className="mt-2 font-body text-tri-nav text-tri-ink/70">
+            <p className="mt-2 font-body text-tri-nav text-tri-muted">
               Every <strong>Save snapshot to history</strong> stores rankings for this browser (up to 24 weeks).
               Open any week below to review past leaderboards or set it as the compare baseline for awards.
             </p>
           </div>
           {history.length === 0 ? (
-            <p className="px-6 py-10 text-center font-body text-tri-nav text-tri-ink/55">
+            <p className="px-6 py-10 text-center font-body text-tri-nav text-tri-muted">
               No snapshots yet. Upload data, compute scores, then save the current week.
             </p>
           ) : (
-            <ul className="divide-y divide-neutral-200">
+            <ul className="divide-y divide-[var(--border)]">
               {history.map((h) => {
                 const top = h.metrics[0];
                 const isCurrent = h.id === currentSnapshotId;
@@ -563,10 +563,10 @@ export function AdminPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <p className="font-display text-lg font-semibold text-tri-forest">{h.weekLabel}</p>
-                        <p className="mt-1 truncate font-body text-tri-nav text-tri-ink/75" title={h.focalActivity}>
+                        <p className="mt-1 truncate font-body text-tri-nav text-tri-muted" title={h.focalActivity}>
                           {h.focalActivity}
                         </p>
-                        <p className="mt-2 font-body text-xs text-tri-ink/55">
+                        <p className="mt-2 font-body text-xs text-tri-muted">
                           Saved {formatSavedAt(h.savedAt)} · {h.metrics.length} teams
                           {top ? (
                             <>
@@ -607,7 +607,7 @@ export function AdminPage() {
                       </div>
                     </div>
                     {isViewing && (
-                      <div className="mt-4 overflow-hidden rounded border border-neutral-200">
+                      <div className="mt-4 overflow-hidden rounded border border-tri-border">
                         <MentorLeaderboardTable metrics={h.metrics} />
                       </div>
                     )}
@@ -617,17 +617,17 @@ export function AdminPage() {
             </ul>
           )}
           {viewedSnapshot && (
-            <div className="border-t border-neutral-200 bg-tri-mist/40 px-6 py-3 font-body text-tri-nav text-tri-ink/65">
+            <div className="border-t border-tri-border bg-tri-mist/40 px-6 py-3 font-body text-tri-nav text-tri-muted">
               Viewing snapshot: <strong>{viewedSnapshot.weekLabel}</strong>
             </div>
           )}
         </section>
 
-        <section className="overflow-hidden rounded border border-neutral-200 bg-tri-sand shadow-card">
-          <div className="flex flex-col gap-2 border-b border-neutral-200 bg-tri-mist px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded border border-tri-border bg-tri-sand shadow-card">
+          <div className="flex flex-col gap-2 border-b border-tri-border bg-tri-mist px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-display text-tri-section text-tri-forest">Current week (draft)</h2>
-              <p className="mt-1 font-body text-tri-nav text-tri-ink/70">
+              <p className="mt-1 font-body text-tri-nav text-tri-muted">
                 {focalActivity ? (
                   <>
                     Focal course: <span className="font-medium text-tri-ink">{focalActivity}</span>
@@ -637,7 +637,7 @@ export function AdminPage() {
                 )}
               </p>
             </div>
-            <div className="text-right font-body text-tri-nav text-tri-ink/50">
+            <div className="text-right font-body text-tri-nav text-tri-faint">
               Effort cap: <strong>{METRICS.effort.expectedWeeklyMinutesPerMember}</strong> minutes / active
               member
             </div>
@@ -650,7 +650,7 @@ export function AdminPage() {
 
       </main>
 
-      <footer className="mt-auto shrink-0 border-t border-white/10 bg-tri-night px-4 pb-12 pt-8 text-center font-body text-tri-nav text-white/70">
+      <footer className="mt-auto shrink-0 border-t border-tri-border bg-tri-chrome px-4 pb-12 pt-8 text-center font-body text-tri-nav text-tri-footer-text transition-colors">
         <p>
           Admin tools stay on this route. Raw exports never leave your machine until you publish
           {usesFirebasePublished()
@@ -671,8 +671,8 @@ function AwardRow({ icon, label, teams }: { icon: string; label: string; teams: 
     <li className="flex items-start gap-2">
       <span className="text-lg leading-none">{icon}</span>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">{label}</p>
-        <p className="font-medium text-white">{formatAwardTeams(teams)}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-tri-faint">{label}</p>
+        <p className="font-medium text-tri-ink">{formatAwardTeams(teams)}</p>
       </div>
     </li>
   );
@@ -680,7 +680,7 @@ function AwardRow({ icon, label, teams }: { icon: string; label: string; teams: 
 
 function FormulaCard() {
   return (
-    <div className="rounded border border-neutral-200 bg-tri-sand p-5 font-body text-tri-lead text-tri-ink/85 shadow-card">
+    <div className="rounded border border-tri-border bg-tri-sand p-5 font-body text-tri-lead text-tri-muted shadow-card">
       <h3 className="font-display text-2xl text-tri-forest">Scoring (max {METRICS.totalMaxPoints})</h3>
       <ul className="mt-4 list-disc space-y-2 pl-5 text-tri-nav leading-relaxed">
         {METRIC_DEFINITIONS.map((d) => (
@@ -689,7 +689,7 @@ function FormulaCard() {
           </li>
         ))}
       </ul>
-      <p className="mt-4 text-tri-nav text-tri-ink/65">
+      <p className="mt-4 text-tri-nav text-tri-muted">
         Full reference: <code className="text-sm">docs/METRICS.md</code> · weights in{" "}
         <code className="text-sm">src/lib/metrics.js</code>.
       </p>

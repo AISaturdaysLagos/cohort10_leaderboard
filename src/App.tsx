@@ -12,7 +12,7 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function RouteFallback() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 text-center font-body text-tri-lead text-tri-ink/70">
+    <div className="mx-auto max-w-6xl px-4 py-16 text-center font-body text-tri-lead text-tri-muted">
       Loading…
     </div>
   );

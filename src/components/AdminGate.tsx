@@ -46,9 +46,9 @@ export function AdminGate({ children }: Props) {
   if (!isAdminConfigured()) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16">
-        <div className="rounded border border-neutral-200 bg-tri-sand p-8 text-center shadow-card">
+        <div className="rounded border border-tri-border bg-tri-sand p-8 text-center shadow-card">
           <h1 className="font-display text-2xl text-tri-forest">Mentor area unavailable</h1>
-          <p className="mt-4 font-body text-tri-lead text-tri-ink/80">
+          <p className="mt-4 font-body text-tri-lead text-tri-muted">
             Scoreboard tools are not configured yet. Set Firebase or a local admin password for development.
           </p>
           <Link to="/" className="tri-btn-primary mt-8 inline-flex">
@@ -61,7 +61,7 @@ export function AdminGate({ children }: Props) {
 
   if (checking) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-16 text-center font-body text-tri-lead text-tri-ink/70">
+      <div className="mx-auto max-w-6xl px-4 py-16 text-center font-body text-tri-lead text-tri-muted">
         Checking sign-in…
       </div>
     );
@@ -70,9 +70,9 @@ export function AdminGate({ children }: Props) {
   if (!authed) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-16">
-        <div className="rounded border border-neutral-200 bg-tri-sand p-8 shadow-card">
+        <div className="rounded border border-tri-border bg-tri-sand p-8 shadow-card">
           <h1 className="font-display text-2xl text-tri-forest">Mentor sign-in</h1>
-          <p className="mt-3 font-body text-tri-lead text-tri-ink/75">
+          <p className="mt-3 font-body text-tri-lead text-tri-muted">
             {usesFirebasePublished()
               ? adminAllowlistHint()
                 ? `Sign in with ${adminAllowlistHint()} to publish the leaderboard for all students.`
@@ -90,14 +90,14 @@ export function AdminGate({ children }: Props) {
                 {submitting ? "Signing in…" : "Sign in with Google"}
               </button>
               {hasAdminAllowlist() && adminAllowlistHint() && (
-                <p className="font-body text-xs text-tri-ink/55">Restricted to {adminAllowlistHint()}.</p>
+                <p className="font-body text-xs text-tri-muted">Restricted to {adminAllowlistHint()}.</p>
               )}
             </div>
           ) : (
             <LegacyPasswordForm onError={setLoginError} error={error} />
           )}
           {error && (
-            <p className="mt-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</p>
+            <p className="mt-4 rounded border tri-alert-error">{error}</p>
           )}
           <Link to="/" className="mt-6 inline-block font-body text-sm font-medium text-tri-leaf hover:underline">
             ← Back to leaderboard
@@ -143,14 +143,14 @@ function LegacyPasswordForm({
         <input
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 font-body text-tri-nav"
+          className="mt-1 w-full rounded border border-tri-border-md bg-tri-surface px-3 py-2 font-body text-tri-nav"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
       </label>
       {error && (
-        <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</p>
+        <p className="rounded border tri-alert-error">{error}</p>
       )}
       <button type="submit" className="tri-btn-primary w-full justify-center" disabled={submitting}>
         {submitting ? "Signing in…" : "Sign in"}
@@ -170,9 +170,9 @@ function AdminAuthedShell({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-neutral-200 bg-tri-mist">
+      <div className="shrink-0 border-b border-tri-border bg-tri-mist">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-3 px-4 py-2">
-          <span className="font-body text-xs text-tri-ink/55">
+          <span className="font-body text-xs text-tri-muted">
             {signedInEmail ? `Signed in as ${signedInEmail}` : "Signed in as mentor"}
             {usesFirebasePublished() ? " · Firebase" : " · local"}
           </span>

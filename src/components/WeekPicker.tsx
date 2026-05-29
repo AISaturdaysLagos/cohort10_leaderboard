@@ -20,11 +20,11 @@ export function WeekPicker({ mondayIso, onMondayIsoChange, weekOptions }: Props)
   const rangeMax = weekOptions?.length ? weekOptions[0] : undefined;
 
   return (
-    <div className="mt-6 rounded border border-neutral-200 bg-tri-mist/50 p-4">
-      <p className="font-nav text-xs font-semibold uppercase tracking-wide text-tri-ink/50">
+    <div className="mt-6 rounded border border-tri-border bg-tri-mist/50 p-4">
+      <p className="font-nav text-xs font-semibold uppercase tracking-wide text-tri-faint">
         Scoring week (UTC, Monday–Sunday)
       </p>
-      <p className="mt-1 font-body text-tri-nav text-tri-ink/65">
+      <p className="mt-1 font-body text-tri-nav text-tri-muted">
         Pick any day in the week — it snaps to that week&apos;s Monday. End is always the following Sunday.
       </p>
 
@@ -33,7 +33,7 @@ export function WeekPicker({ mondayIso, onMondayIsoChange, weekOptions }: Props)
           <span className="font-medium text-tri-ink">Week containing (date)</span>
           <input
             type="date"
-            className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
+            className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
             value={mondayIso}
             min={rangeMin}
             max={rangeMax}
@@ -49,7 +49,7 @@ export function WeekPicker({ mondayIso, onMondayIsoChange, weekOptions }: Props)
           <label className="block font-body text-tri-nav">
             <span className="font-medium text-tri-ink">Or choose from activity range</span>
             <select
-              className="mt-1 w-full rounded border border-neutral-300 bg-tri-sand px-3 py-2 font-body text-tri-nav"
+              className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
               value={mondayIso}
               onChange={(e) => onMondayIsoChange(e.target.value)}
             >
@@ -63,16 +63,16 @@ export function WeekPicker({ mondayIso, onMondayIsoChange, weekOptions }: Props)
         ) : (
           <div className="flex flex-col justify-end font-body text-tri-nav">
             <span className="font-medium text-tri-ink">Sunday (UTC, auto)</span>
-            <p className="mt-1 rounded border border-neutral-200 bg-tri-sand px-3 py-2 text-tri-ink/80">
+            <p className="mt-1 rounded border border-tri-border bg-tri-sand px-3 py-2 text-tri-muted">
               {sundayIso}
             </p>
           </div>
         )}
       </div>
 
-      <p className="mt-3 font-body text-sm text-tri-ink/70">
+      <p className="mt-3 font-body text-sm text-tri-muted">
         <span className="font-medium text-tri-forest">{formatWeekLabel(bounds)}</span>
-        <span className="text-tri-ink/50"> · Mon {mondayIso} → Sun {sundayIso}</span>
+        <span className="text-tri-faint"> · Mon {mondayIso} → Sun {sundayIso}</span>
       </p>
     </div>
   );

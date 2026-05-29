@@ -1,32 +1,32 @@
 /** @type {import('tailwindcss').Config} */
-/** Palette & type from https://aisaturdayslagos.github.io/cohort_structure/cohort10/ */
+/** Theme tokens from https://aisaturdayslagos.github.io/cohort_structure/cohort10/ */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
         tri: {
-          /** page chrome, headings, footer */
-          forest: "#0a0a0a",
-          /** primary accent (orange) */
-          leaf: "#e05508",
-          /** primary hover */
-          mint: "#c94d07",
-          /** card / panel fill */
-          mist: "#fdf6eb",
-          sand: "#ffffff",
-          /** body copy */
-          ink: "#0a0a0a",
-          /** logo “AI” gold */
+          sand: "var(--bg)",
+          surface: "var(--bg-1)",
+          mist: "var(--bg-2)",
+          panel: "var(--bg-3)",
+          ink: "var(--text)",
+          muted: "var(--text-2)",
+          faint: "var(--hero-crumb)",
+          leaf: "var(--orange)",
+          mint: "var(--orange)",
+          orange: "var(--orange)",
+          forest: "var(--text)",
           gold: "#D4A017",
-          /** bright orange (dark UI, dots) */
-          orange: "#FE6612",
-          /** footer strip */
-          night: "#0a0a0a",
-          /** elevated surface */
-          surface: "#fdf6eb",
-          /** cohort10 success green */
-          green: "#16a34a",
+          green: "var(--green)",
+          chrome: "var(--chrome-bg)",
+          border: "var(--border)",
+          "border-md": "var(--border-md)",
+          night: "var(--chrome-bg)",
+          "nav-link": "var(--nav-link)",
+          "nav-hover": "var(--nav-hover-bg)",
+          "footer-text": "var(--footer-text)",
+          "input-bg": "var(--input-bg)",
         },
       },
       fontFamily: {

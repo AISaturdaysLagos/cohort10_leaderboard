@@ -47,18 +47,18 @@ export function StudentPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="relative shrink-0 overflow-hidden border-b border-black/8 bg-white">
+      <header className="relative shrink-0 overflow-hidden border-b border-tri-border bg-tri-chrome transition-colors">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(254,102,18,0.08)_0%,transparent_70%)]"
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl px-4 py-10 sm:py-12">
-          <p className="text-xs text-tri-ink/40">TRI AI Saturdays · League</p>
+          <p className="text-xs text-tri-faint">TRI AI Saturdays · League</p>
           <span className="tri-hero-tag mt-4">Weekly leaderboard</span>
           <h1 className="mt-4 max-w-3xl font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
             Team leaderboard
           </h1>
-          <p className="mt-3 max-w-2xl font-body text-tri-lead text-tri-ink/70">
+          <p className="mt-3 max-w-2xl font-body text-tri-lead text-tri-muted">
             Weekly scores from Skills Boost activity — completion, understanding, participation, effort, and
             consistency. Fair across team sizes; resets every week.
           </p>
@@ -81,19 +81,19 @@ export function StudentPage() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-12 px-4 py-12">
         {loadError && (
-          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 font-body text-sm text-red-900">
+          <div className="tri-alert-error">
             Could not load the leaderboard: {loadError}
           </div>
         )}
         {loading && (
-          <div className="rounded border border-neutral-200 bg-tri-sand p-10 text-center shadow-card">
-            <p className="font-body text-tri-lead text-tri-ink/70">Loading leaderboard…</p>
+          <div className="rounded border border-tri-border bg-tri-sand p-10 text-center shadow-card">
+            <p className="font-body text-tri-lead text-tri-muted">Loading leaderboard…</p>
           </div>
         )}
         {!loading && !data && (
-          <div className="rounded-tri border border-dashed border-black/15 bg-tri-mist/50 p-10 text-center shadow-card">
+          <div className="rounded-tri border border-dashed border-tri-border bg-tri-mist/50 p-10 text-center shadow-card">
             <h2 className="font-display text-tri-section text-tri-forest">Leaderboard coming soon</h2>
-            <p className="mx-auto mt-4 max-w-md font-body text-tri-lead text-tri-ink/80">
+            <p className="mx-auto mt-4 max-w-md font-body text-tri-lead text-tri-muted">
               This week&apos;s team scores are not posted yet. Check back after your Saturday session — your
               mentor will share the board here when it&apos;s ready.
             </p>
@@ -102,18 +102,18 @@ export function StudentPage() {
 
         {!loading && data && (
           <>
-            <section className="flex flex-col gap-4 rounded-tri border border-black/10 bg-tri-mist p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-4 rounded-tri border border-tri-border bg-tri-mist p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">
+                <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">
                   This week
                 </p>
                 <p className="mt-1 font-display text-tri-section text-tri-forest">{data.weekLabel}</p>
-                <p className="mt-3 font-body text-tri-lead text-tri-ink/80">
+                <p className="mt-3 font-body text-tri-lead text-tri-muted">
                   This week&apos;s focus:{" "}
                   <span className="font-medium text-tri-ink">{data.focalActivity}</span>
                 </p>
               </div>
-              <div className="text-left font-body text-tri-nav text-tri-ink/60 sm:text-right">
+              <div className="text-left font-body text-tri-nav text-tri-muted sm:text-right">
                 <p>Updated</p>
                 <p className="font-medium text-tri-ink">{publishedAtLabel(data.publishedAt)}</p>
               </div>
@@ -122,7 +122,7 @@ export function StudentPage() {
             {awards && (
               <section>
                 <h2 className="font-display text-tri-section text-tri-forest">Shout-outs</h2>
-                <p className="mt-2 font-body text-tri-lead text-tri-ink/75">Celebrating more than first place.</p>
+                <p className="mt-2 font-body text-tri-lead text-tri-muted">Celebrating more than first place.</p>
                 <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <StudentAward title="Team of the week" emoji="🥇" teams={awards.teamOfTheWeek} />
                   <StudentAward title="Most improved" emoji="📈" teams={awards.mostImproved} />
@@ -135,7 +135,7 @@ export function StudentPage() {
 
             <section>
               <h2 className="font-display text-tri-section text-tri-forest">Rankings</h2>
-              <p className="mt-2 font-body text-tri-lead text-tri-ink/75">
+              <p className="mt-2 font-body text-tri-lead text-tri-muted">
                 Out of {METRICS.totalMaxPoints} points this week.
               </p>
               <div className="mt-8 space-y-4">
@@ -145,7 +145,7 @@ export function StudentPage() {
               </div>
             </section>
 
-            <section className="rounded-tri border border-black/10 bg-tri-mist p-8 font-body text-tri-lead text-tri-ink/85">
+            <section className="rounded-tri border border-tri-border bg-tri-mist p-8 font-body text-tri-lead text-tri-muted">
               <h3 className="font-display text-2xl text-tri-forest">How your team earns points</h3>
               <ul className="mt-4 list-disc space-y-2 pl-5 leading-relaxed">
                 <li>
@@ -164,7 +164,7 @@ export function StudentPage() {
                   <strong>Together</strong> — everyone on the team takes part, not just a few people
                 </li>
               </ul>
-              <p className="mt-4 leading-relaxed text-tri-ink/75">
+              <p className="mt-4 leading-relaxed text-tri-muted">
                 Teams can earn up to {METRICS.totalMaxPoints} points each week. The board resets every week so
                 every team gets a fresh start.
               </p>
@@ -173,7 +173,7 @@ export function StudentPage() {
         )}
       </main>
 
-      <footer className="mt-auto shrink-0 border-t border-white/10 bg-tri-night px-4 py-10 text-center font-body text-tri-nav text-white/75">
+      <footer className="mt-auto shrink-0 border-t border-tri-border bg-tri-chrome px-4 py-10 text-center font-body text-tri-nav text-tri-footer-text transition-colors">
         <p>
           <a
             className="font-semibold text-tri-orange no-underline hover:text-tri-leaf"
@@ -192,12 +192,12 @@ export function StudentPage() {
 
 function StudentAward({ title, emoji, teams }: { title: string; emoji: string; teams: string[] }) {
   return (
-    <li className="flex gap-4 rounded-tri border border-black/10 bg-white p-5 shadow-card">
+    <li className="flex gap-4 rounded-tri border border-tri-border bg-tri-surface p-5 shadow-card">
       <span className="text-2xl leading-none" aria-hidden>
         {emoji}
       </span>
       <div>
-        <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">{title}</p>
+        <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">{title}</p>
         <p className="mt-1 font-display text-xl font-semibold text-tri-leaf">{formatAwardTeams(teams)}</p>
       </div>
     </li>
@@ -207,21 +207,21 @@ function StudentAward({ title, emoji, teams }: { title: string; emoji: string; t
 function StudentTeamRow({ rank, m }: { rank: number; m: TeamMetricBreakdown }) {
   const mdl = medal(rank);
   return (
-    <article className="overflow-hidden rounded-tri border border-black/10 bg-white shadow-card">
-      <div className="flex flex-col gap-4 border-b border-black/10 bg-tri-mist px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <article className="overflow-hidden rounded-tri border border-tri-border bg-tri-surface shadow-card">
+      <div className="flex flex-col gap-4 border-b border-tri-border bg-tri-mist px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded bg-tri-leaf font-display text-xl font-semibold text-white shadow-tri">
             {mdl ? <span title={`Rank ${rank}`}>{mdl}</span> : <span>{rank}</span>}
           </span>
           <div>
-            <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">Team</p>
+            <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">Team</p>
             <h3 className="font-display text-2xl font-semibold leading-tight text-tri-forest">{m.team}</h3>
           </div>
         </div>
         <div className="text-left sm:text-right">
-          <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-ink/50">Weekly score</p>
+          <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">Weekly score</p>
           <p className="font-display text-4xl font-bold leading-tight text-tri-leaf">{fmt1(m.totalScore)}</p>
-          <p className="font-body text-tri-nav text-tri-ink/55">out of {METRICS.totalMaxPoints}</p>
+          <p className="font-body text-tri-nav text-tri-muted">out of {METRICS.totalMaxPoints}</p>
         </div>
       </div>
       <div className="grid gap-3 p-5 sm:grid-cols-5">
@@ -268,18 +268,18 @@ function ScorePill({
 }) {
   const pctBar = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="rounded-tri border border-black/10 bg-white p-3">
-      <p className="font-nav text-[10px] font-bold uppercase tracking-wide text-tri-ink/50">{label}</p>
+    <div className="rounded-tri border border-tri-border bg-tri-surface p-3">
+      <p className="font-nav text-[10px] font-bold uppercase tracking-wide text-tri-faint">{label}</p>
       <p className="mt-1 font-semibold text-tri-forest">
-        {fmt1(value)} <span className="text-xs font-normal text-tri-ink/50">/ {max}</span>
+        {fmt1(value)} <span className="text-xs font-normal text-tri-faint">/ {max}</span>
       </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-200">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-tri-border-md">
         <div
           className="h-full rounded-full bg-tri-leaf transition-all"
           style={{ width: `${pctBar}%` }}
         />
       </div>
-      <p className="mt-2 font-body text-[11px] leading-snug text-tri-ink/60">{hint}</p>
+      <p className="mt-2 font-body text-[11px] leading-snug text-tri-muted">{hint}</p>
     </div>
   );
 }

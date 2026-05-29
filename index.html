@@ -13,10 +13,22 @@
       content="TRI AI Saturdays League — weekly team leaderboard from Skills Boost activity."
     />
     <title>Saturdays League | TRI AI</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("tri-saturdays-league-theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root">
-      <p style="margin: 2rem; font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; color: #0a0a0a">
+      <p style="margin: 2rem; font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; color: var(--text, #e5e5e5)">
         Loading…
       </p>
     </div>

@@ -25,7 +25,7 @@ export function TriAiLogo({ height = 40, className = "", showTagline = false }: 
           fontFamily="'Plus Jakarta Sans', Inter, system-ui, sans-serif"
           fontSize="52"
         >
-          <tspan fontWeight="500" letterSpacing="2" className="fill-tri-ink">
+          <tspan fontWeight="500" letterSpacing="2" style={{ fill: "var(--logo-tri-fill)" }}>
             tri
           </tspan>
           <tspan fontWeight="800" letterSpacing="3" fill="#D4A017">
@@ -37,7 +37,7 @@ export function TriAiLogo({ height = 40, className = "", showTagline = false }: 
         <circle cx="114" cy="74" r="4" fill="#2ECDB8" />
       </svg>
       {showTagline && (
-        <span className="hidden font-sans text-[0.8rem] font-medium leading-snug text-tri-ink/35 sm:inline">
+        <span className="hidden font-sans text-[0.8rem] font-medium leading-snug sm:inline" style={{ color: "var(--logo-sub-c)" }}>
           Teaching · Research · Innovation · AI Saturdays League
         </span>
       )}

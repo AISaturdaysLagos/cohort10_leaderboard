@@ -1,6 +1,6 @@
 # Firebase setup for shared leaderboard
 
-When Firebase is configured, **Publish** writes to Firestore and every student on the live site sees the same board. Without Firebase, the app falls back to **browser localStorage** (single-device only).
+When Firebase is configured, **Publish** writes to Firestore and every student on the live site sees the same board. **Save snapshot to history** also writes to Firestore so all signed-in mentors share the same week snapshots. Without Firebase, the app falls back to **browser localStorage** (single-device only).
 
 ## 1. Create a Firebase project
 
@@ -62,7 +62,8 @@ You do **not** need `firebase init` — `firebase.json` and `firestore.rules` ar
 Rules in [`firestore.rules`](../firestore.rules):
 
 - **Anyone** can **read** `leaderboard/published` (student page)
-- **Signed-in mentors** can **write** (publish from admin)
+- **Signed-in mentors** can **read/write** `snapshots/{id}` (shared admin history)
+- **Signed-in mentors** can **write** `leaderboard/published` (publish from admin)
 
 ## 4. Local development
 
@@ -110,6 +111,23 @@ Document path: `leaderboard/published`
 ```
 
 Raw CSVs and roster emails **never** go to Firebase — only the curated leaderboard JSON.
+
+### Snapshot history
+
+Collection: `snapshots/{id}` (document id = week snapshot id, e.g. `2026-W15-my-course`)
+
+```json
+{
+  "id": "2026-W15-my-course",
+  "weekLabel": "Week of 14 Apr 2026",
+  "focalActivity": "Course name",
+  "metrics": [ "... team scores ..." ],
+  "savedAt": "2026-04-16T12:00:00.000Z",
+  "savedBy": "mentor@tri-ai.org"
+}
+```
+
+Up to **24** snapshots are kept (oldest removed on save). Only signed-in mentors can read or delete them.
 
 ## Free tier
 

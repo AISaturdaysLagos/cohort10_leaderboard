@@ -24,8 +24,14 @@ import {
 } from "../lib/scoring";
 import { MentorLeaderboardTable } from "../components/MentorLeaderboardTable";
 import { WeekPicker } from "../components/WeekPicker";
-import { deleteHistoryEntry, loadHistory, saveHistoryEntry, type HistoryEntry } from "../lib/history";
-import { savePublishedBoard, usesFirebasePublished } from "../lib/published";
+import {
+  deleteHistoryEntry,
+  saveHistoryEntry,
+  subscribeHistory,
+  usesFirebaseHistory,
+  type HistoryEntry,
+} from "../lib/history";
+import { clearPublishedBoard, savePublishedBoard, usesFirebasePublished } from "../lib/published";
 import { fmt1, formatAwardTeams, formatSavedAt } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
@@ -38,10 +44,13 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [clearingPublished, setClearingPublished] = useState(false);
   const [weekMondayIso, setWeekMondayIso] = useState("2026-04-14");
   const [parentOverride, setParentOverride] = useState("");
   const [focalOverride, setFocalOverride] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
   const [compareId, setCompareId] = useState<string>("");
   const [viewHistoryId, setViewHistoryId] = useState<string>("");
   const [rosterTeamFallback, setRosterTeamFallback] = useState("");
@@ -167,16 +176,16 @@ export function AdminPage() {
     [history, viewHistoryId],
   );
 
-  const refreshHistory = useCallback(() => {
-    setHistory(loadHistory());
-  }, []);
-
-  const removeSnapshot = (id: string) => {
+  const removeSnapshot = async (id: string) => {
     if (!window.confirm("Remove this saved snapshot from history?")) return;
-    deleteHistoryEntry(id);
-    if (viewHistoryId === id) setViewHistoryId("");
-    if (compareId === id) setCompareId("");
-    refreshHistory();
+    setError(null);
+    try {
+      await deleteHistoryEntry(id);
+      if (viewHistoryId === id) setViewHistoryId("");
+      if (compareId === id) setCompareId("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete the snapshot.");
+    }
   };
 
   const loadSamples = useCallback(async () => {
@@ -216,9 +225,19 @@ export function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const id = window.setTimeout(() => refreshHistory(), 0);
-    return () => window.clearTimeout(id);
-  }, [refreshHistory]);
+    setHistoryLoading(true);
+    const unsub = subscribeHistory(
+      (entries) => {
+        setHistory(entries);
+        setHistoryLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setHistoryLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
 
   const onActivityFile = async (f: File | null) => {
     if (!f) return;
@@ -261,8 +280,8 @@ export function AdminPage() {
     }
   };
 
-  const saveWeek = () => {
-    if (!focalActivity || !metrics.length) return;
+  const saveWeek = async () => {
+    if (!focalActivity || !metrics.length || savingSnapshot) return;
     const id = snapshotId(week, focalActivity);
     const entry: HistoryEntry = {
       id,
@@ -271,9 +290,22 @@ export function AdminPage() {
       metrics,
       savedAt: new Date().toISOString(),
     };
-    saveHistoryEntry(entry);
-    refreshHistory();
-    setViewHistoryId(id);
+    setError(null);
+    setSavingSnapshot(true);
+    try {
+      await saveHistoryEntry(entry);
+      setViewHistoryId(id);
+      setPublishMsg(
+        usesFirebaseHistory()
+          ? "Snapshot saved — all signed-in mentors can see it."
+          : "Snapshot saved on this browser.",
+      );
+      window.setTimeout(() => setPublishMsg(null), 5000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the snapshot.");
+    } finally {
+      setSavingSnapshot(false);
+    }
   };
 
   const publishToStudents = async () => {
@@ -292,6 +324,34 @@ export function AdminPage() {
       setError(e instanceof Error ? e.message : "Could not publish the leaderboard.");
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const clearPublishedFromStudents = async () => {
+    if (clearingPublished) return;
+    if (
+      !window.confirm(
+        usesFirebasePublished()
+          ? "Remove the published leaderboard from Firebase? Students will see “Leaderboard coming soon” until you publish again."
+          : "Remove the published leaderboard from this browser?",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setClearingPublished(true);
+    try {
+      await clearPublishedBoard();
+      setPublishMsg(
+        usesFirebasePublished()
+          ? "Published board cleared from Firebase."
+          : "Published board cleared from this browser.",
+      );
+      window.setTimeout(() => setPublishMsg(null), 6000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not clear the published leaderboard.");
+    } finally {
+      setClearingPublished(false);
     }
   };
 
@@ -456,16 +516,29 @@ export function AdminPage() {
               <button type="button" className="tri-btn-muted" onClick={() => void loadProgramSample()}>
                 Load program sample
               </button>
-              <button type="button" className="tri-btn-muted" onClick={saveWeek} disabled={!metrics.length}>
-                Save snapshot to history
+              <button
+                type="button"
+                className="tri-btn-muted"
+                onClick={() => void saveWeek()}
+                disabled={!metrics.length || savingSnapshot}
+              >
+                {savingSnapshot ? "Saving snapshot…" : "Save snapshot to history"}
               </button>
               <button
                 type="button"
                 className="tri-btn-primary disabled:opacity-40"
                 onClick={() => void publishToStudents()}
-                disabled={!metrics.length || publishing}
+                disabled={!metrics.length || publishing || clearingPublished}
               >
                 {publishing ? "Publishing…" : "Publish to student page"}
+              </button>
+              <button
+                type="button"
+                className="tri-btn-muted disabled:opacity-40"
+                onClick={() => void clearPublishedFromStudents()}
+                disabled={publishing || clearingPublished}
+              >
+                {clearingPublished ? "Clearing…" : "Clear published board"}
               </button>
             </div>
             <WeekPicker
@@ -544,11 +617,16 @@ export function AdminPage() {
           <div className="border-b border-tri-border bg-tri-mist px-6 py-4">
             <h2 className="font-display text-tri-section text-tri-forest">Saved week snapshots</h2>
             <p className="mt-2 font-body text-tri-nav text-tri-muted">
-              Every <strong>Save snapshot to history</strong> stores rankings for this browser (up to 24 weeks).
+              {usesFirebaseHistory()
+                ? "Snapshots are stored in Firebase — any signed-in mentor can view, compare, or delete them (up to 24 weeks)."
+                : "Snapshots are stored on this browser only (up to 24 weeks). Configure Firebase to share across mentors."}
+              {" "}
               Open any week below to review past leaderboards or set it as the compare baseline for awards.
             </p>
           </div>
-          {history.length === 0 ? (
+          {historyLoading ? (
+            <p className="px-6 py-10 text-center font-body text-tri-nav text-tri-muted">Loading snapshots…</p>
+          ) : history.length === 0 ? (
             <p className="px-6 py-10 text-center font-body text-tri-nav text-tri-muted">
               No snapshots yet. Upload data, compute scores, then save the current week.
             </p>
@@ -567,7 +645,8 @@ export function AdminPage() {
                           {h.focalActivity}
                         </p>
                         <p className="mt-2 font-body text-xs text-tri-muted">
-                          Saved {formatSavedAt(h.savedAt)} · {h.metrics.length} teams
+                          Saved {formatSavedAt(h.savedAt)}
+                          {h.savedBy ? ` · ${h.savedBy}` : ""} · {h.metrics.length} teams
                           {top ? (
                             <>
                               {" "}
@@ -600,7 +679,7 @@ export function AdminPage() {
                         <button
                           type="button"
                           className="tri-btn-muted text-sm text-red-800"
-                          onClick={() => removeSnapshot(h.id)}
+                          onClick={() => void removeSnapshot(h.id)}
                         >
                           Delete
                         </button>

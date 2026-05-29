@@ -1,6 +1,6 @@
 import type { PublishedLeaderboard, TeamMetricBreakdown, WeeklyAwards } from "../types";
 import { isFirebaseConfigured } from "./firebase";
-import { savePublishedToFirestore, subscribePublishedFromFirestore } from "./firebasePublished";
+import { savePublishedToFirestore, subscribePublishedFromFirestore, clearPublishedFromFirestore } from "./firebasePublished";
 
 const KEY = "tri-saturdays-league-published-v1";
 const MAX_STORAGE_BYTES = 4_000_000;
@@ -131,6 +131,20 @@ export function subscribePublished(
   };
 }
 
-export function clearPublished() {
+export function clearPublishedLocal(): void {
   localStorage.removeItem(KEY);
+}
+
+/** @deprecated Use clearPublishedLocal */
+export function clearPublished() {
+  clearPublishedLocal();
+}
+
+/** Remove the student-facing board from Firestore (if configured) and localStorage. */
+export async function clearPublishedBoard(): Promise<void> {
+  if (isFirebaseConfigured()) {
+    await clearPublishedFromFirestore();
+  }
+  clearPublishedLocal();
+  window.dispatchEvent(new Event(PUBLISH_EVENT));
 }

@@ -63,3 +63,13 @@ export type StoredWeekSnapshot = {
   scores: Record<string, number>;
   savedAt: string;
 };
+
+export type HistoryEntry = {
+  id: string;
+  weekLabel: string;
+  focalActivity: string;
+  metrics: TeamMetricBreakdown[];
+  savedAt: string;
+  /** Mentor email when saved via Firebase Auth. */
+  savedBy?: string;
+};

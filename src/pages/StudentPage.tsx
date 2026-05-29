@@ -1,16 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribePublished, type PublishedLeaderboard } from "../lib/published";
-import { fmt1, formatAwardTeams, pct } from "../lib/format";
+import { TeamLeaderboardRow } from "../components/TeamLeaderboardRow";
+import { formatAwardTeams } from "../lib/format";
 import { METRICS } from "../lib/metrics.constants";
-import type { TeamMetricBreakdown } from "../types";
-
-function medal(rank: number): string {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return "";
-}
 
 function publishedAtLabel(iso: string): string {
   try {
@@ -136,11 +129,11 @@ export function StudentPage() {
             <section>
               <h2 className="font-display text-tri-section text-tri-forest">Rankings</h2>
               <p className="mt-2 font-body text-tri-lead text-tri-muted">
-                Out of {METRICS.totalMaxPoints} points this week.
+                Out of {METRICS.totalMaxPoints} points this week. Tap a team to see how points were earned.
               </p>
-              <div className="mt-8 space-y-4">
+              <div className="mt-8 space-y-3">
                 {metrics.map((m, i) => (
-                  <StudentTeamRow key={m.team} rank={i + 1} m={m} />
+                  <TeamLeaderboardRow key={m.team} rank={i + 1} m={m} />
                 ))}
               </div>
             </section>
@@ -201,85 +194,5 @@ function StudentAward({ title, emoji, teams }: { title: string; emoji: string; t
         <p className="mt-1 font-display text-xl font-semibold text-tri-leaf">{formatAwardTeams(teams)}</p>
       </div>
     </li>
-  );
-}
-
-function StudentTeamRow({ rank, m }: { rank: number; m: TeamMetricBreakdown }) {
-  const mdl = medal(rank);
-  return (
-    <article className="overflow-hidden rounded-tri border border-tri-border bg-tri-surface shadow-card">
-      <div className="flex flex-col gap-4 border-b border-tri-border bg-tri-mist px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded bg-tri-leaf font-display text-xl font-semibold text-white shadow-tri">
-            {mdl ? <span title={`Rank ${rank}`}>{mdl}</span> : <span>{rank}</span>}
-          </span>
-          <div>
-            <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">Team</p>
-            <h3 className="font-display text-2xl font-semibold leading-tight text-tri-forest">{m.team}</h3>
-          </div>
-        </div>
-        <div className="text-left sm:text-right">
-          <p className="font-nav text-tri-nav font-medium uppercase tracking-wide text-tri-faint">Weekly score</p>
-          <p className="font-display text-4xl font-bold leading-tight text-tri-leaf">{fmt1(m.totalScore)}</p>
-          <p className="font-body text-tri-nav text-tri-muted">out of {METRICS.totalMaxPoints}</p>
-        </div>
-      </div>
-      <div className="grid gap-3 p-5 sm:grid-cols-5">
-        <ScorePill
-          label="Completion"
-          value={m.completionPoints}
-          max={METRICS.weights.completion}
-          hint={pct(m.completionRate)}
-        />
-        <ScorePill label="Quiz" value={m.quizPoints} max={METRICS.weights.quiz} hint={pct(m.avgQuiz)} />
-        <ScorePill
-          label="Participation"
-          value={m.participationPoints}
-          max={METRICS.weights.participation}
-          hint={`${m.participatedCount}/${m.activeMembers}`}
-        />
-        <ScorePill
-          label="Effort"
-          value={m.effortPoints}
-          max={METRICS.weights.effort}
-          hint={`${fmt1(m.avgLearningMinutes)} min avg`}
-        />
-        <ScorePill
-          label="Together"
-          value={m.consistencyPoints}
-          max={METRICS.weights.consistency}
-          hint="whole team engaged"
-        />
-      </div>
-    </article>
-  );
-}
-
-function ScorePill({
-  label,
-  value,
-  max,
-  hint,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  hint: string;
-}) {
-  const pctBar = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div className="rounded-tri border border-tri-border bg-tri-surface p-3">
-      <p className="font-nav text-[10px] font-bold uppercase tracking-wide text-tri-faint">{label}</p>
-      <p className="mt-1 font-semibold text-tri-forest">
-        {fmt1(value)} <span className="text-xs font-normal text-tri-faint">/ {max}</span>
-      </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-tri-border-md">
-        <div
-          className="h-full rounded-full bg-tri-leaf transition-all"
-          style={{ width: `${pctBar}%` }}
-        />
-      </div>
-      <p className="mt-2 font-body text-[11px] leading-snug text-tri-muted">{hint}</p>
-    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { deleteDoc, doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { PublishedLeaderboard } from "../types";
 import { getFirebaseDb } from "./firebase";
 
@@ -19,6 +19,10 @@ export async function savePublishedToFirestore(
   };
   await setDoc(publishedRef(), payload);
   return payload;
+}
+
+export async function clearPublishedFromFirestore(): Promise<void> {
+  await deleteDoc(publishedRef());
 }
 
 export function subscribePublishedFromFirestore(

@@ -1,3 +1,5 @@
+import { LOGO_TAGLINE } from "../lib/triAiBrand";
+
 type TriAiLogoProps = {
   /** SVG height in px (width scales from viewBox). */
   height?: number;
@@ -38,7 +40,7 @@ export function TriAiLogo({ height = 40, className = "", showTagline = false }: 
       </svg>
       {showTagline && (
         <span className="hidden font-sans text-[0.8rem] font-medium leading-snug sm:inline" style={{ color: "var(--logo-sub-c)" }}>
-          Teaching · Research · Innovation · AI Saturdays League
+          {LOGO_TAGLINE}
         </span>
       )}
     </span>

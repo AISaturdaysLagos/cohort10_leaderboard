@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type { ActivityRow, RosterRow } from "../types";
+import { parseTeamAssignmentsCsv, teamAssignmentsToLookup } from "./teamAssignments";
 import { parseUtcDate } from "./dates";
 
 function norm(s: string): string {
@@ -82,14 +83,8 @@ export function parseActivityCsv(text: string): ActivityRow[] {
   return rows;
 }
 
-/** Google “program group members” exports often omit Team — use defaultTeamWhenMissing or built-in "Cohort". */
-export type ParseRosterOptions = {
-  defaultTeamWhenMissing?: string;
-};
-
-const ROSTER_FALLBACK_TEAM = "Cohort";
-
-export function parseRosterCsv(text: string, options?: ParseRosterOptions): RosterRow[] {
+/** Google “program group members” exports often omit Team — team comes from the shared team map. */
+export function parseRosterCsv(text: string): RosterRow[] {
   const clean = stripBom(text);
   const parsed = Papa.parse<RawActivity>(clean, {
     header: true,
@@ -116,11 +111,6 @@ export function parseRosterCsv(text: string, options?: ParseRosterOptions): Rost
       "Learning group",
     ]).trim();
 
-    if (!team) {
-      const custom = options?.defaultTeamWhenMissing?.trim();
-      team = custom && custom.length > 0 ? custom : ROSTER_FALLBACK_TEAM;
-    }
-
     const statusRaw = norm(pickFirst(r, ["Status", "Member status", "State", "Membership"]));
     const status: RosterRow["status"] =
       statusRaw === "active" ? "active" : statusRaw === "pending" ? "pending" : "other";
@@ -143,32 +133,27 @@ export function parseRosterCsv(text: string, options?: ParseRosterOptions): Rost
 
 /** Minimal CSV: Email + Team (one row per learner). Merged into roster/program export. */
 export function parseTeamLookupCsv(text: string): Map<string, string> {
-  const clean = stripBom(text);
-  const parsed = Papa.parse<RawActivity>(clean, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
-  });
-  if (parsed.errors.length) {
-    const msg = parsed.errors.map((e) => e.message).join("; ");
-    throw new Error(`Team CSV parse error: ${msg}`);
-  }
-  const map = new Map<string, string>();
-  for (const r of parsed.data) {
-    const email = norm(
-      pickFirst(r, ["Email", "Email address", "User email", "Primary email", "Member email"]),
-    );
-    const team = pickFirst(r, ["Team", "Group", "Team name", "Squad"]).trim();
-    if (email && team) map.set(email, team);
-  }
-  return map;
+  return teamAssignmentsToLookup(parseTeamAssignmentsCsv(text));
 }
 
-/** When a team lookup is provided, it overrides `team` for matching emails (e.g. program roster + team map). */
+/** Keep roster rows whose email exists in the team map; assign team name from the map. */
+export function applyTeamMapToRoster(roster: RosterRow[], lookup: Map<string, string>): RosterRow[] {
+  if (!lookup.size) return [];
+  return roster
+    .filter((r) => lookup.has(r.email))
+    .map((r) => ({ ...r, team: lookup.get(r.email)! }));
+}
+
+/** Activity rows for learners listed in the team map only. */
+export function filterActivityByTeamMap<T extends { member: string }>(
+  rows: T[],
+  lookup: Map<string, string>,
+): T[] {
+  if (!lookup.size) return [];
+  return rows.filter((r) => lookup.has(r.member));
+}
+
+/** @deprecated Use applyTeamMapToRoster */
 export function mergeTeamAssignments(roster: RosterRow[], lookup: Map<string, string>): RosterRow[] {
-  if (!lookup.size) return roster;
-  return roster.map((r) => {
-    const t = lookup.get(r.email);
-    return t ? { ...r, team: t } : r;
-  });
+  return applyTeamMapToRoster(roster, lookup);
 }

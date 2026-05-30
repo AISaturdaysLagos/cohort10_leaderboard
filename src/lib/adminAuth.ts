@@ -63,7 +63,7 @@ export function adminAllowlistHint(): string | null {
     return `Google accounts on ${domains.map((d) => `@${d}`).join(", ")}`;
   }
   if (allowedAdminEmails().size > 0) {
-    return "allowlisted mentor Google accounts";
+    return "allowlisted admin Google accounts";
   }
   return null;
 }
@@ -156,7 +156,7 @@ export async function tryAdminLogin(email: string, password: string): Promise<st
   if (isFirebaseConfigured()) {
     const trimmedEmail = email.trim() || FIREBASE_ADMIN_EMAIL;
     if (!trimmedEmail) {
-      return "Enter your mentor email.";
+      return "Enter your admin email.";
     }
     try {
       const cred = await signInWithEmailAndPassword(getFirebaseAuth(), trimmedEmail, password);

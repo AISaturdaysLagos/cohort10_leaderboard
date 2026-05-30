@@ -55,7 +55,13 @@ npm run firebase:login
 npm run firebase:deploy-rules
 ```
 
-If you prefer a one-off without scripts: `npx firebase login` then `npx firebase deploy --only firestore:rules`.
+If deploy fails with *credentials are no longer valid*, refresh the token (opens browser):
+
+```bash
+npm run firebase:login-reauth
+```
+
+If you prefer a one-off without scripts: `npx firebase login --reauth` then `npx firebase deploy --only firestore:rules`.
 
 You do **not** need `firebase init` — `firebase.json` and `firestore.rules` are already in the repo.
 
@@ -63,6 +69,7 @@ Rules in [`firestore.rules`](../firestore.rules):
 
 - **Anyone** can **read** `leaderboard/published` (student page)
 - **Signed-in mentors** can **read/write** `snapshots/{id}` (shared admin history)
+- **Signed-in mentors** can **read/write** `config/teamMap` (shared email → team name map)
 - **Signed-in mentors** can **write** `leaderboard/published` (publish from admin)
 
 ## 4. Local development
@@ -128,6 +135,30 @@ Collection: `snapshots/{id}` (document id = week snapshot id, e.g. `2026-W15-my-
 ```
 
 Up to **24** snapshots are kept (oldest removed on save). Only signed-in mentors can read or delete them.
+
+### Team assignments
+
+Document path: `config/teamMap`
+
+```json
+{
+  "version": 1,
+  "csv": "Email,Team_ID,Team_Name\n…",
+  "updatedAt": "2026-04-16T12:00:00.000Z",
+  "updatedBy": "mentor@tri-ai.org"
+}
+```
+
+The admin page loads this map first (expects **Email** + **Team_Name** or **Team** columns). Uploading a new CSV from `/admin` replaces the document for all mentors.
+
+Seed the initial map from a local file (gitignored):
+
+```bash
+# team_assignments_with_names.csv in repo root
+npm run firebase:seed-team-map
+```
+
+Requires Application Default Credentials (`gcloud auth application-default login` or `GOOGLE_APPLICATION_CREDENTIALS`).
 
 ## Free tier
 

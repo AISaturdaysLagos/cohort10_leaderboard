@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import { Link } from "react-router-dom";
 import type { WeekBounds } from "../types";
 import {
   activityDateExtent,
   formatWeekLabel,
+  inferDefaultWeekMondayFromActivity,
   listUtcWeekMondaysBetween,
   utcMondayIsoFromDate,
   weekBoundsFromMondayIso,
 } from "../lib/dates";
-import { parseActivityCsv, parseRosterCsv, parseTeamLookupCsv, mergeTeamAssignments } from "../lib/parseCsv";
+import { parseActivityCsv, parseRosterCsv, parseTeamLookupCsv, applyTeamMapToRoster, filterActivityByTeamMap } from "../lib/parseCsv";
 import {
   computeTeamMetrics,
   computeWeeklyAwards,
@@ -19,7 +20,8 @@ import {
   inferDominantParent,
   inferDominantParentGlobal,
   inferFocalCourse,
-  listCourseActivities,
+  listFocalCourseOptions,
+  listParentLearningPaths,
   snapshotId,
 } from "../lib/scoring";
 import { MentorLeaderboardTable } from "../components/MentorLeaderboardTable";
@@ -35,17 +37,21 @@ import { clearPublishedBoard, savePublishedBoard, usesFirebasePublished } from "
 import { fmt1, formatAwardTeams, formatSavedAt } from "../lib/format";
 import { activityImportSummary, rosterImportSummary, teamLookupSummary } from "../lib/importSummary";
 import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
-import { publicAsset } from "../lib/publicAsset";
-import { internalTeamLookup } from "../lib/defaultTeamMap";
+import { subscribeTeamMap, usesFirebaseTeamMap } from "../lib/teamMap";
+import { TeamManagementTab } from "../components/TeamManagementTab";
+import { LEAGUE_NAME, LEARNERS_LABEL } from "../lib/triAiBrand";
+
+type AdminTab = "scoreboard" | "teams";
 
 export function AdminPage() {
+  const [adminTab, setAdminTab] = useState<AdminTab>("scoreboard");
   const [activityText, setActivityText] = useState<string>("");
   const [rosterText, setRosterText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [clearingPublished, setClearingPublished] = useState(false);
-  const [weekMondayIso, setWeekMondayIso] = useState("2026-04-14");
+  const [weekMondayIso, setWeekMondayIso] = useState("");
   const [parentOverride, setParentOverride] = useState("");
   const [focalOverride, setFocalOverride] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -53,13 +59,14 @@ export function AdminPage() {
   const [savingSnapshot, setSavingSnapshot] = useState(false);
   const [compareId, setCompareId] = useState<string>("");
   const [viewHistoryId, setViewHistoryId] = useState<string>("");
-  const [rosterTeamFallback, setRosterTeamFallback] = useState("");
-  const [teamsText, setTeamsText] = useState("");
+  const [remoteTeamMapCsv, setRemoteTeamMapCsv] = useState("");
+  const [teamMapLoading, setTeamMapLoading] = useState(true);
   const deferredActivityText = useDeferredValue(activityText);
   const deferredRosterText = useDeferredValue(rosterText);
-  const deferredTeamsText = useDeferredValue(teamsText);
+  const deferredRemoteTeamMapCsv = useDeferredValue(remoteTeamMapCsv);
+  const activityWeekSyncedRef = useRef("");
 
-  const rows = useMemo(() => {
+  const allActivityRows = useMemo(() => {
     if (!deferredActivityText.trim()) return [];
     try {
       return parseActivityCsv(deferredActivityText);
@@ -68,59 +75,112 @@ export function AdminPage() {
     }
   }, [deferredActivityText]);
 
-  const teamMapIsOverride = Boolean(deferredTeamsText.trim());
+  const inferredWeekMonday = useMemo(
+    () => inferDefaultWeekMondayFromActivity(allActivityRows),
+    [allActivityRows],
+  );
+
+  const effectiveWeekMondayIso =
+    weekMondayIso || inferredWeekMonday || utcMondayIsoFromDate(new Date());
+
+  useEffect(() => {
+    if (!deferredActivityText.trim()) {
+      activityWeekSyncedRef.current = "";
+      return;
+    }
+    if (activityWeekSyncedRef.current === deferredActivityText) return;
+    activityWeekSyncedRef.current = deferredActivityText;
+    const monday = inferDefaultWeekMondayFromActivity(allActivityRows);
+    if (monday) {
+      setWeekMondayIso(monday);
+      setFocalOverride("");
+      setParentOverride("");
+    }
+  }, [deferredActivityText, allActivityRows]);
+
+  const teamMapCsv = useMemo(() => {
+    if (deferredRemoteTeamMapCsv.trim()) return deferredRemoteTeamMapCsv;
+    return "";
+  }, [deferredRemoteTeamMapCsv]);
 
   const teamLookup = useMemo(() => {
-    if (teamMapIsOverride) {
-      try {
-        return parseTeamLookupCsv(deferredTeamsText);
-      } catch {
-        return new Map<string, string>();
-      }
+    if (!teamMapCsv.trim()) return new Map<string, string>();
+    try {
+      return parseTeamLookupCsv(teamMapCsv);
+    } catch {
+      return new Map<string, string>();
     }
-    return internalTeamLookup();
-  }, [deferredTeamsText, teamMapIsOverride]);
+  }, [teamMapCsv]);
+
+  const teamMapSource = useMemo(() => {
+    if (deferredRemoteTeamMapCsv.trim()) {
+      return usesFirebaseTeamMap() ? "shared Firebase team map" : "saved team map";
+    }
+    if (teamMapLoading) return "loading team map…";
+    return "no team map — upload on Team management tab";
+  }, [deferredRemoteTeamMapCsv, teamMapLoading]);
 
   const roster = useMemo(() => {
-    if (!deferredRosterText.trim()) return [];
+    if (!deferredRosterText.trim() || !teamLookup.size) return [];
     try {
-      const base = parseRosterCsv(deferredRosterText, {
-        defaultTeamWhenMissing: rosterTeamFallback.trim() || undefined,
-      });
-      return mergeTeamAssignments(base, teamLookup);
+      const base = parseRosterCsv(deferredRosterText);
+      return applyTeamMapToRoster(base, teamLookup);
     } catch {
       return [];
     }
-  }, [deferredRosterText, rosterTeamFallback, teamLookup]);
+  }, [deferredRosterText, teamLookup]);
+
+  const rosterExcludedCount = useMemo(() => {
+    if (!deferredRosterText.trim() || !teamLookup.size) return 0;
+    try {
+      const base = parseRosterCsv(deferredRosterText);
+      return base.filter((r) => !teamLookup.has(r.email)).length;
+    } catch {
+      return 0;
+    }
+  }, [deferredRosterText, teamLookup]);
+
+  const rows = useMemo(
+    () => filterActivityByTeamMap(allActivityRows, teamLookup),
+    [allActivityRows, teamLookup],
+  );
+
+  const activityExcludedCount = useMemo(() => {
+    if (!teamLookup.size) return allActivityRows.length;
+    return allActivityRows.filter((r) => !teamLookup.has(r.member)).length;
+  }, [allActivityRows, teamLookup]);
 
   const isParsing =
     activityText !== deferredActivityText ||
     rosterText !== deferredRosterText ||
-    teamsText !== deferredTeamsText;
+    remoteTeamMapCsv !== deferredRemoteTeamMapCsv;
 
   const teamSummary = useMemo(() => {
     const base = teamLookupSummary(teamLookup);
-    if (!base) return "";
-    return teamMapIsOverride ? `${base} · uploaded team map` : `${base} · built-in team.csv`;
-  }, [teamLookup, teamMapIsOverride]);
+    if (!base) return teamMapLoading ? "Loading team assignments…" : "";
+    return `${base} · ${teamMapSource}`;
+  }, [teamLookup, teamMapSource, teamMapLoading]);
 
-  const week: WeekBounds = useMemo(() => weekBoundsFromMondayIso(weekMondayIso), [weekMondayIso]);
+  const week: WeekBounds = useMemo(
+    () => weekBoundsFromMondayIso(effectiveWeekMondayIso),
+    [effectiveWeekMondayIso],
+  );
 
   const weekMondayOptions = useMemo(() => {
-    const extent = activityDateExtent(rows);
+    const extent = activityDateExtent(allActivityRows);
     if (!extent) return [];
     return listUtcWeekMondaysBetween(extent.min, extent.max).reverse();
-  }, [rows]);
+  }, [allActivityRows]);
 
-  const latestCourseDate = useLatestCourseDate(rows);
+  const latestCourseDate = useLatestCourseDate(allActivityRows);
 
   const inferredParentWeek = useMemo(
-    () => (rows.length ? inferDominantParent(rows, week) : null),
-    [rows, week],
+    () => (allActivityRows.length ? inferDominantParent(allActivityRows, week) : null),
+    [allActivityRows, week],
   );
   const inferredParentGlobal = useMemo(
-    () => (rows.length ? inferDominantParentGlobal(rows) : null),
-    [rows],
+    () => (allActivityRows.length ? inferDominantParentGlobal(allActivityRows) : null),
+    [allActivityRows],
   );
 
   const parentName = useMemo(() => {
@@ -129,10 +189,15 @@ export function AdminPage() {
     return inferredParentWeek ?? inferredParentGlobal;
   }, [parentOverride, inferredParentWeek, inferredParentGlobal]);
 
+  const parentOptions = useMemo(
+    () => listParentLearningPaths(allActivityRows),
+    [allActivityRows],
+  );
+
   const inferredFocal = useMemo(() => {
-    if (!rows.length || !parentName) return null;
-    return inferFocalCourse(rows, week, parentName);
-  }, [rows, week, parentName]);
+    if (!allActivityRows.length) return null;
+    return inferFocalCourse(allActivityRows, week, parentName ?? null);
+  }, [allActivityRows, week, parentName]);
 
   const focalActivity = useMemo(() => {
     const o = focalOverride.trim();
@@ -140,10 +205,19 @@ export function AdminPage() {
     return inferredFocal ?? "";
   }, [focalOverride, inferredFocal]);
 
-  const courseOptions = useMemo(() => listCourseActivities(rows, parentName), [rows, parentName]);
+  const courseOptions = useMemo(
+    () => listFocalCourseOptions(allActivityRows, week, parentName ?? null),
+    [allActivityRows, week, parentName],
+  );
 
-  const activitySummary = useMemo(() => activityImportSummary(rows), [rows]);
-  const rosterSummary = useMemo(() => rosterImportSummary(roster), [roster]);
+  const activitySummary = useMemo(
+    () => activityImportSummary(rows, activityExcludedCount),
+    [rows, activityExcludedCount],
+  );
+  const rosterSummary = useMemo(
+    () => rosterImportSummary(roster, rosterExcludedCount),
+    [roster, rosterExcludedCount],
+  );
 
   const metrics = useMemo(() => {
     if (!rows.length || !roster.length || !focalActivity) return [];
@@ -188,42 +262,6 @@ export function AdminPage() {
     }
   };
 
-  const loadSamples = useCallback(async () => {
-    setError(null);
-    try {
-      const [a, r] = await Promise.all([
-        fetch(publicAsset("sample-week-activity.csv")).then((x) => x.text()),
-        fetch(publicAsset("sample-roster.csv")).then((x) => x.text()),
-      ]);
-      setActivityText(a);
-      setRosterText(r);
-      const parsed = parseActivityCsv(a);
-      const anchor =
-        parsed
-          .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
-          .map((row) => row.dateStarted!)
-          .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date();
-      setWeekMondayIso(utcMondayIsoFromDate(anchor));
-      setParentOverride("");
-      setFocalOverride("");
-      setRosterTeamFallback("");
-      setTeamsText("");
-    } catch {
-      setError("Could not load sample files from /public.");
-    }
-  }, []);
-
-  const loadProgramSample = useCallback(async () => {
-    setError(null);
-    try {
-      const r = await fetch(publicAsset("sample-program-roster.csv")).then((x) => x.text());
-      setRosterText(r);
-      setRosterTeamFallback("");
-    } catch {
-      setError("Could not load sample program roster from /public.");
-    }
-  }, []);
-
   useEffect(() => {
     setHistoryLoading(true);
     const unsub = subscribeHistory(
@@ -239,20 +277,28 @@ export function AdminPage() {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    setTeamMapLoading(true);
+    const unsub = subscribeTeamMap(
+      (data) => {
+        setRemoteTeamMapCsv(data?.csv ?? "");
+        setTeamMapLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setTeamMapLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
+
   const onActivityFile = async (f: File | null) => {
     if (!f) return;
     setError(null);
     const t = await f.text();
     setActivityText(t);
     try {
-      const parsed = parseActivityCsv(t);
-      const anchor =
-        parsed
-          .filter((row) => row.activityType.trim().toLowerCase() === "course" && row.dateStarted)
-          .map((row) => row.dateStarted!)
-          .sort((x, y) => y.getTime() - x.getTime())[0] ?? new Date();
-      setWeekMondayIso(utcMondayIsoFromDate(anchor));
-      setFocalOverride("");
+      parseActivityCsv(t);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid activity CSV");
     }
@@ -265,18 +311,6 @@ export function AdminPage() {
       setRosterText(await f.text());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid roster CSV");
-    }
-  };
-
-  const onTeamsFile = async (f: File | null) => {
-    if (!f) return;
-    setError(null);
-    try {
-      const t = await f.text();
-      parseTeamLookupCsv(t);
-      setTeamsText(t);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Invalid team CSV");
     }
   };
 
@@ -364,19 +398,52 @@ export function AdminPage() {
         />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:py-12">
           <div>
-            <p className="text-xs text-tri-faint">Mentor admin · TRI AI Saturdays League</p>
-            <span className="tri-hero-tag mt-4">Scoreboard controls</span>
+            <p className="text-xs text-tri-faint">Admin · {LEAGUE_NAME}</p>
+            <span className="tri-hero-tag mt-4">
+              {adminTab === "teams" ? "Team management" : "Scoreboard controls"}
+            </span>
             <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
-              Weekly scoreboard controls
+              {adminTab === "teams" ? "Team management" : "Weekly scoreboard controls"}
             </h1>
             <p className="mt-4 max-w-xl font-body text-tri-lead text-tri-muted">
-              Upload Skills Boost exports, tune the week and focal course, then{" "}
-              <strong>publish</strong> so learners only see the curated student view — no raw CSVs or roster
-              emails.
+              {adminTab === "teams" ? (
+                <>
+                  Upload and edit cohort team assignments shared across mentors. Changes save to Firebase for
+                  the scoreboard.
+                </>
+              ) : (
+                <>
+                  Upload Skills Boost exports, tune the week and focal course, then{" "}
+                  <strong>publish</strong> so {LEARNERS_LABEL} only see the curated student view — no raw
+                  CSVs or roster emails.
+                </>
+              )}
             </p>
             <div className="tri-hero-rule" />
+            <nav className="mt-6 flex flex-wrap gap-2" aria-label="Admin sections">
+              <button
+                type="button"
+                className={
+                  adminTab === "scoreboard"
+                    ? "tri-btn-primary py-2"
+                    : "tri-btn-outline-panel py-2"
+                }
+                onClick={() => setAdminTab("scoreboard")}
+              >
+                Scoreboard
+              </button>
+              <button
+                type="button"
+                className={
+                  adminTab === "teams" ? "tri-btn-primary py-2" : "tri-btn-outline-panel py-2"
+                }
+                onClick={() => setAdminTab("teams")}
+              >
+                Team management
+              </button>
+            </nav>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link className="tri-btn-primary" to="/">
+              <Link className="tri-btn-primary" to="/leaderboard">
                 Open student view
               </Link>
               <a
@@ -402,6 +469,10 @@ export function AdminPage() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-10">
+        {adminTab === "teams" ? (
+          <TeamManagementTab />
+        ) : (
+          <>
         {publishMsg && (
           <div className="rounded border border-tri-leaf/40 bg-tri-mist px-4 py-3 font-body text-tri-nav text-tri-forest">
             {publishMsg}
@@ -424,9 +495,16 @@ export function AdminPage() {
             <p className="mt-3 font-body text-tri-lead text-tri-muted">
               Each week: upload the <strong>activity</strong> export from Skills Boost, then the{" "}
               <strong>roster or program members</strong> export (emails, Active/Pending, last active — these files do{" "}
-              <strong>not</strong> include team names). Team names for the leaderboard come only from the{" "}
-              optional <strong>Email + Team</strong> upload below (overrides the built-in <code>team.csv</code>), or
-              from one shared label when no team assignments apply.
+              <strong>not</strong> include team names). Only {LEARNERS_LABEL} listed in the shared team map
+              are scored — everyone else is excluded (no default team). Manage assignments on the{" "}
+              <button
+                type="button"
+                className="font-semibold text-tri-orange underline-offset-2 hover:underline"
+                onClick={() => setAdminTab("teams")}
+              >
+                Team management
+              </button>{" "}
+              tab.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -435,7 +513,7 @@ export function AdminPage() {
                 </span>
                 <input
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv"
                   className="mt-2 block w-full text-sm"
                   onChange={(e) => void onActivityFile(e.target.files?.[0] ?? null)}
                 />
@@ -446,53 +524,18 @@ export function AdminPage() {
                 </span>
                 <input
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv"
                   className="mt-2 block w-full text-sm"
                   onChange={(e) => void onRosterFile(e.target.files?.[0] ?? null)}
                 />
                 <span className="mt-1 block font-body text-tri-nav text-tri-muted">
                   Expected columns include <strong>Email</strong> and <strong>Status</strong> (e.g. Active / Pending),
                   and usually <strong>Last active</strong>. Google program group members exports match this — there is
-                  no team column; team names come from built-in team.csv unless you upload an override.
+                  no team column; team names come from the shared Firebase team map (see Team management tab).
                 </span>
               </label>
             </div>
-            <label className="mt-4 block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-tri-faint">
-                Team map CSV (optional — Email + Team)
-              </span>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                className="mt-2 block w-full text-sm"
-                onChange={(e) => void onTeamsFile(e.target.files?.[0] ?? null)}
-              />
-              <span className="mt-1 block font-body text-tri-nav text-tri-muted">
-                One row per learner: <strong>Email</strong>, <strong>Team</strong>. If you skip this, assignments come
-                from the built-in <strong>team.csv</strong> in the repo. Upload only when you need to override that map.
-              </span>
-              {teamMapIsOverride && (
-                <button
-                  type="button"
-                  className="tri-btn-muted mt-2 py-1.5 text-xs"
-                  onClick={() => setTeamsText("")}
-                >
-                  Use built-in team.csv
-                </button>
-              )}
-            </label>
-            <label className="mt-4 block font-body text-tri-nav">
-              <span className="font-medium text-tri-ink">
-                Single team name (only when no team map applies to a learner)
-              </span>
-              <input
-                className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
-                placeholder="Leave blank to use “Cohort”"
-                value={rosterTeamFallback}
-                onChange={(e) => setRosterTeamFallback(e.target.value)}
-              />
-            </label>
-            {(rows.length > 0 || roster.length > 0 || teamLookup.size > 0) && (
+            {(rows.length > 0 || roster.length > 0 || teamLookup.size > 0 || activityExcludedCount > 0 || rosterExcludedCount > 0) && (
               <div className="mt-4 rounded border border-tri-leaf/35 bg-tri-mist px-4 py-3 font-body text-sm leading-relaxed text-tri-ink">
                 {rows.length > 0 && <p>{activitySummary}</p>}
                 {roster.length > 0 && (
@@ -510,12 +553,6 @@ export function AdminPage() {
               </div>
             )}
             <div className="mt-4 flex flex-wrap gap-3">
-              <button type="button" className="tri-btn-muted" onClick={() => void loadSamples()}>
-                Reload sample week
-              </button>
-              <button type="button" className="tri-btn-muted" onClick={() => void loadProgramSample()}>
-                Load program sample
-              </button>
               <button
                 type="button"
                 className="tri-btn-muted"
@@ -542,18 +579,47 @@ export function AdminPage() {
               </button>
             </div>
             <WeekPicker
-              mondayIso={weekMondayIso}
+              mondayIso={effectiveWeekMondayIso}
               onMondayIsoChange={setWeekMondayIso}
               weekOptions={weekMondayOptions.length > 0 ? weekMondayOptions : undefined}
             />
             <label className="mt-4 block font-body text-tri-nav">
-              <span className="font-medium text-tri-ink">Parent learning path (override)</span>
-              <input
-                className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
-                placeholder={inferredParentWeek ?? inferredParentGlobal ?? "Detected automatically"}
-                value={parentOverride}
-                onChange={(e) => setParentOverride(e.target.value)}
-              />
+              <span className="font-medium text-tri-ink">Parent learning path</span>
+              {parentOptions.length > 0 ? (
+                <select
+                  className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
+                  value={parentOverride || parentName || ""}
+                  onChange={(e) => setParentOverride(e.target.value)}
+                >
+                  <option value="">
+                    Auto
+                    {inferredParentWeek || inferredParentGlobal
+                      ? ` (${inferredParentWeek ?? inferredParentGlobal})`
+                      : ""}
+                  </option>
+                  {parentOptions.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
+                  placeholder={
+                    allActivityRows.length
+                      ? "No parent paths in activity export"
+                      : "Upload activity CSV first"
+                  }
+                  value={parentOverride}
+                  onChange={(e) => setParentOverride(e.target.value)}
+                />
+              )}
+              <span className="mt-1 block text-xs text-tri-muted">
+                {parentOptions.length > 0
+                  ? `${parentOptions.length} learning paths found in activity export.`
+                  : "Optional — filters focal courses when parent paths exist in the export."}
+              </span>
             </label>
             <label className="mt-4 block font-body text-tri-nav">
               <span className="font-medium text-tri-ink">Week focal course</span>
@@ -561,14 +627,28 @@ export function AdminPage() {
                 className="mt-1 w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav"
                 value={focalOverride || inferredFocal || ""}
                 onChange={(e) => setFocalOverride(e.target.value)}
+                disabled={!allActivityRows.length}
               >
-                <option value="">Auto (most starters in week)</option>
+                <option value="">
+                  {allActivityRows.length
+                    ? "Auto (most starters in week)"
+                    : "Upload activity CSV first"}
+                </option>
                 {courseOptions.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
               </select>
+              {allActivityRows.length > 0 && (
+                <span className="mt-1 block text-xs text-tri-muted">
+                  {courseOptions.length} course
+                  {courseOptions.length === 1 ? "" : "s"} from activity
+                  {courseOptions.length
+                    ? " (active in selected week when available)"
+                    : " — none match the selected week or parent path"}
+                </span>
+              )}
             </label>
             <p className="mt-2 font-body text-tri-nav text-tri-muted">
               Publishing writes the current metrics and awards to this browser&apos;s local storage under a
@@ -727,20 +807,10 @@ export function AdminPage() {
           />
         </section>
 
-      </main>
+          </>
+        )}
 
-      <footer className="mt-auto shrink-0 border-t border-tri-border bg-tri-chrome px-4 pb-12 pt-8 text-center font-body text-tri-nav text-tri-footer-text transition-colors">
-        <p>
-          Admin tools stay on this route. Raw exports never leave your machine until you publish
-          {usesFirebasePublished()
-            ? " summaries to Firebase."
-            : " summaries (local browser only until Firebase is configured)."}{" "}
-          Student route:{" "}
-          <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
-            /
-          </Link>
-        </p>
-      </footer>
+      </main>
     </div>
   );
 }

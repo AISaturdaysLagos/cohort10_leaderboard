@@ -24,8 +24,6 @@ npm run dev:clean
 
 Open the URL Vite prints (usually **http://localhost:5173/**). If the page hangs, run `npm run dev:clean` — a stuck process often blocks port 5173.
 
-If you previously published the **100 teams** sample, clear site data for localhost (DevTools → Application → Local Storage) if the page feels frozen.
-
 ### Admin sign-in
 
 **Production (Firebase):** follow [`docs/FIREBASE.md`](docs/FIREBASE.md) — mentors sign in at `/admin` with a Firebase Email/Password user. Publishing writes to Firestore; students worldwide see the update.
@@ -55,9 +53,3 @@ If the repository is renamed, update `VITE_BASE_PATH` in the workflow and `GITHU
 ## Metrics
 
 Scoring weights and formulas: [`docs/METRICS.md`](docs/METRICS.md) · implementation: [`src/lib/metrics.js`](src/lib/metrics.js).
-
-## Sample data
-
-```bash
-npm run generate:sample-100teams   # 100 teams × 10 students in public/
-```

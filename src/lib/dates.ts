@@ -83,6 +83,27 @@ export function activityDateExtent(rows: ActivityRow[]): { min: Date; max: Date 
   return { min: new Date(minT), max: new Date(maxT) };
 }
 
+/** Default scoring week (Monday ISO) from uploaded activity — latest course start, else latest activity date. */
+export function inferDefaultWeekMondayFromActivity(rows: ActivityRow[]): string | null {
+  let courseLatest: Date | null = null;
+  let anyLatest: Date | null = null;
+
+  for (const r of rows) {
+    if (r.dateStarted) {
+      if (!anyLatest || r.dateStarted > anyLatest) anyLatest = r.dateStarted;
+      if (r.activityType.trim().toLowerCase() === "course") {
+        if (!courseLatest || r.dateStarted > courseLatest) courseLatest = r.dateStarted;
+      }
+    }
+    if (r.dateCompleted) {
+      if (!anyLatest || r.dateCompleted > anyLatest) anyLatest = r.dateCompleted;
+    }
+  }
+
+  const anchor = courseLatest ?? anyLatest;
+  return anchor ? utcMondayIsoFromDate(anchor) : null;
+}
+
 /** Monday ISO dates for each UTC week from `min` through `max` (inclusive). Capped to avoid UI freezes. */
 const MAX_WEEK_OPTIONS = 104;
 

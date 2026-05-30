@@ -14,15 +14,17 @@ type Props = {
   m: TeamMetricBreakdown;
   /** Mentor expanded panel includes roster counts and inactive members. */
   variant?: "student" | "mentor";
+  /** Open the breakdown panel by default (e.g. when surfaced by search). */
+  defaultOpen?: boolean;
 };
 
-export function TeamLeaderboardRow({ rank, m, variant = "student" }: Props) {
+export function TeamLeaderboardRow({ rank, m, variant = "student", defaultOpen = false }: Props) {
   const mdl = medal(rank);
   const rankLabel = mdl || String(rank);
 
   return (
     <article className="overflow-hidden rounded-tri border border-tri-border bg-tri-surface shadow-card">
-      <details className="group">
+      <details className="group" open={defaultOpen || undefined}>
         <summary
           className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-tri-mist/60 [&::-webkit-details-marker]:hidden"
           aria-label={`${m.team}, rank ${rank}, ${fmt1(m.totalScore)} points. Show score breakdown.`}
@@ -86,26 +88,22 @@ function StudentMetricPills({ m }: { m: TeamMetricBreakdown }) {
         <ScorePill
           label="Completion"
           value={m.completionPoints}
-          max={METRICS.weights.completion}
           hint={pct(m.completionRate)}
         />
-        <ScorePill label="Quiz" value={m.quizPoints} max={METRICS.weights.quiz} hint={pct(m.avgQuiz)} />
+        <ScorePill label="Quiz" value={m.quizPoints} hint={pct(m.avgQuiz)} />
         <ScorePill
           label="Participation"
           value={m.participationPoints}
-          max={METRICS.weights.participation}
           hint={`${m.participatedCount}/${m.activeMembers}`}
         />
         <ScorePill
           label="Effort"
           value={m.effortPoints}
-          max={METRICS.weights.effort}
           hint={`${fmt1(m.avgLearningMinutes)} min avg`}
         />
         <ScorePill
           label="Together"
           value={m.consistencyPoints}
-          max={METRICS.weights.consistency}
           hint="whole team engaged"
         />
       </div>
@@ -185,27 +183,16 @@ function MetricDetail({
 function ScorePill({
   label,
   value,
-  max,
   hint,
 }: {
   label: string;
   value: number;
-  max: number;
   hint: string;
 }) {
-  const pctBar = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className="rounded-tri border border-tri-border bg-tri-surface p-3">
       <p className="font-nav text-[10px] font-bold uppercase tracking-wide text-tri-faint">{label}</p>
-      <p className="mt-1 font-semibold text-tri-forest">
-        {fmt1(value)} <span className="text-xs font-normal text-tri-faint">/ {max}</span>
-      </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-tri-border-md">
-        <div
-          className="h-full rounded-full bg-tri-leaf transition-all"
-          style={{ width: `${pctBar}%` }}
-        />
-      </div>
+      <p className="mt-1 font-semibold text-tri-forest">{fmt1(value)}</p>
       <p className="mt-2 font-body text-[11px] leading-snug text-tri-muted">{hint}</p>
     </div>
   );

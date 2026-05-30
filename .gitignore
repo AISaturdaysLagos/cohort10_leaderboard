@@ -2,3 +2,4 @@ node_modules
 dist
 .DS_Store
 *.local
+team_assignments_with_names.csv

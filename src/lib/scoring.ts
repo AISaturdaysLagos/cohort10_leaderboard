@@ -56,6 +56,52 @@ export function listCourseActivities(rows: ActivityRow[], parentName: string | n
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 
+/** Course names with any start or completion in the selected UTC week. */
+export function listCourseActivitiesInWeek(
+  rows: ActivityRow[],
+  week: WeekBounds,
+  parentName?: string | null,
+): string[] {
+  const set = new Set<string>();
+  for (const r of rows) {
+    if (normType(r.activityType) !== "course") continue;
+    if (parentName && r.parentName !== parentName) continue;
+    const inWeek =
+      (r.dateStarted && isInRange(r.dateStarted, week)) ||
+      (r.dateCompleted && isInRange(r.dateCompleted, week));
+    if (!inWeek) continue;
+    const act = r.activity.trim();
+    if (act) set.add(act);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Focal course picker options from uploaded activity — courses active in the selected week first,
+ * then all courses in the file if none match the week.
+ */
+export function listFocalCourseOptions(
+  rows: ActivityRow[],
+  week: WeekBounds,
+  parentName?: string | null,
+): string[] {
+  const parent = parentName?.trim() || null;
+  const inWeek = listCourseActivitiesInWeek(rows, week, parent);
+  if (inWeek.length) return inWeek;
+  return listCourseActivities(rows, parent);
+}
+
+/** Parent learning paths present in uploaded activity. */
+export function listParentLearningPaths(rows: ActivityRow[]): string[] {
+  const set = new Set<string>();
+  for (const r of rows) {
+    if (normType(r.activityType) !== "course") continue;
+    const p = r.parentName?.trim();
+    if (p) set.add(p);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
 export function inferFocalCourse(
   rows: ActivityRow[],
   week: WeekBounds,

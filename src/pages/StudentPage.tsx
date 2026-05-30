@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribePublished, type PublishedLeaderboard } from "../lib/published";
-import { TeamLeaderboardRow } from "../components/TeamLeaderboardRow";
+import { TeamRankingList } from "../components/TeamRankingList";
 import { formatAwardTeams } from "../lib/format";
-import { METRICS } from "../lib/metrics.constants";
+import { METRICS, SCORING_CATEGORIES } from "../lib/metrics.constants";
+import { LEAGUE_NAME } from "../lib/triAiBrand";
 
 function publishedAtLabel(iso: string): string {
   try {
@@ -46,7 +47,7 @@ export function StudentPage() {
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl px-4 py-10 sm:py-12">
-          <p className="text-xs text-tri-faint">TRI AI Saturdays · League</p>
+          <p className="text-xs text-tri-faint">{LEAGUE_NAME}</p>
           <span className="tri-hero-tag mt-4">Weekly leaderboard</span>
           <h1 className="mt-4 max-w-3xl font-display text-3xl font-extrabold tracking-tight text-tri-ink sm:text-tri-hero">
             Team leaderboard
@@ -65,6 +66,9 @@ export function StudentPage() {
             >
               Cohort 10 programme
             </a>
+            <Link className="tri-btn-outline-panel" to="/">
+              About the league
+            </Link>
             <Link className="tri-btn-outline-panel" to="/admin">
               Admin
             </Link>
@@ -88,7 +92,7 @@ export function StudentPage() {
             <h2 className="font-display text-tri-section text-tri-forest">Leaderboard coming soon</h2>
             <p className="mx-auto mt-4 max-w-md font-body text-tri-lead text-tri-muted">
               This week&apos;s team scores are not posted yet. Check back after your Saturday session — your
-              mentor will share the board here when it&apos;s ready.
+              admins will share the board here when it&apos;s ready.
             </p>
           </div>
         )}
@@ -131,54 +135,32 @@ export function StudentPage() {
               <p className="mt-2 font-body text-tri-lead text-tri-muted">
                 Out of {METRICS.totalMaxPoints} points this week. Tap a team to see how points were earned.
               </p>
-              <div className="mt-8 space-y-3">
-                {metrics.map((m, i) => (
-                  <TeamLeaderboardRow key={m.team} rank={i + 1} m={m} />
-                ))}
+              <div className="mt-8">
+                <TeamRankingList metrics={metrics} variant="student" />
               </div>
             </section>
 
             <section className="rounded-tri border border-tri-border bg-tri-mist p-8 font-body text-tri-lead text-tri-muted">
               <h3 className="font-display text-2xl text-tri-forest">How your team earns points</h3>
               <ul className="mt-4 list-disc space-y-2 pl-5 leading-relaxed">
-                <li>
-                  <strong>Completion</strong> — finishing this week&apos;s module on Skills Boost
-                </li>
-                <li>
-                  <strong>Quiz</strong> — how well your team does on the course quizzes
-                </li>
-                <li>
-                  <strong>Participation</strong> — showing up and starting the weekly work
-                </li>
-                <li>
-                  <strong>Effort</strong> — time spent learning (up to about two hours per person counts fully)
-                </li>
-                <li>
-                  <strong>Together</strong> — everyone on the team takes part, not just a few people
-                </li>
+                {SCORING_CATEGORIES.map((c) => (
+                  <li key={c.id}>
+                    <strong>{c.label}</strong> — {c.description}
+                  </li>
+                ))}
               </ul>
               <p className="mt-4 leading-relaxed text-tri-muted">
                 Teams can earn up to {METRICS.totalMaxPoints} points each week. The board resets every week so
-                every team gets a fresh start.
+                every team gets a fresh start.{" "}
+                <Link className="font-semibold text-tri-orange no-underline hover:text-tri-leaf" to="/">
+                  Read the full guide
+                </Link>
+                .
               </p>
             </section>
           </>
         )}
       </main>
-
-      <footer className="mt-auto shrink-0 border-t border-tri-border bg-tri-chrome px-4 py-10 text-center font-body text-tri-nav text-tri-footer-text transition-colors">
-        <p>
-          <a
-            className="font-semibold text-tri-orange no-underline hover:text-tri-leaf"
-            href="https://tri-ai.org"
-            target="_blank"
-            rel="noreferrer"
-          >
-            triAI
-          </a>{" "}
-          — Teaching · Research · Innovation
-        </p>
-      </footer>
     </div>
   );
 }

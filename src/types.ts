@@ -73,3 +73,24 @@ export type HistoryEntry = {
   /** Mentor email when saved via Firebase Auth. */
   savedBy?: string;
 };
+
+/** Shared email → team name map (Firestore `config/teamMap`). */
+export type StoredTeamMap = {
+  version: 1;
+  csv: string;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+/** One learner row in team_assignments_with_names.csv */
+export type TeamAssignmentRow = {
+  email: string;
+  teamId: string;
+  teamName: string;
+};
+
+export type TeamGroup = {
+  teamId: string;
+  teamName: string;
+  members: string[];
+};

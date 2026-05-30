@@ -124,13 +124,15 @@ Teams are ranked by `totalScore` descending.
 
 ## Weekly awards (not part of the 100-point total)
 
-| Award               | Rule |
-|---------------------|------|
-| **Team of the week** | Highest `totalScore`; among those tied, highest `completionRate`. **All teams still tied after that get the award** (comma-separated in the UI). |
-| **Deep learners**    | Highest `avgQuiz` (must be &gt; 0). All teams tied at the top win. |
-| **Perfect attendance** | `participationRate = 100%`. Every qualifying team wins. |
-| **Most improved**    | Largest gain in `totalScore` vs previous week (must be &gt; 0). All teams tied at the top gain win. Requires comparison week in admin history. |
-| **Comeback team**    | Previous week `totalScore` &lt; 50 **and** gain &gt; 5 points. All teams tied for the largest gain among eligible teams win. |
+Each category has **at most one winner**. When teams tie on the primary metric, tie-breakers run in order until a single team remains. If teams are still tied after all tie-breakers, **no award is given** (shown as —).
+
+| Award               | Primary rule | Tie-break order |
+|---------------------|--------------|-----------------|
+| **Team of the week** | Highest `totalScore` | `completionRate` → `quizPoints` → `participationRate` → `effortPoints` → `consistencyPoints` → `avgQuiz` |
+| **Deep learners**    | Highest `avgQuiz` (must be &gt; 0) | `totalScore` → `completionRate` → `quizPoints` → `effortPoints` |
+| **Perfect attendance** | `participationRate = 100%` | `totalScore` → `completionRate` → `quizPoints` → `effortPoints` → `consistencyPoints` |
+| **Most improved**    | Largest gain in `totalScore` vs previous week (must be &gt; 0) | Current `totalScore` → `completionRate`. Requires comparison week in admin history. |
+| **Comeback team**    | Previous week `totalScore` &lt; 50 **and** gain &gt; 5 points | Largest gain among eligible → current `totalScore` → `completionRate` |
 
 Thresholds live in `METRICS.awards` in [`metrics.js`](../src/lib/metrics.js).
 

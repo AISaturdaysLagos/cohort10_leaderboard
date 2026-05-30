@@ -6,6 +6,7 @@ import { SiteChrome } from "./components/SiteChrome";
 const StudentPage = lazy(() =>
   import("./pages/StudentPage").then((m) => ({ default: m.StudentPage })),
 );
+const AboutPage = lazy(() => import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })));
 const AdminPage = lazy(() => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })));
 
 const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -25,7 +26,9 @@ export default function App() {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<SiteChrome />}>
-              <Route index element={<StudentPage />} />
+              <Route index element={<AboutPage />} />
+              <Route path="leaderboard" element={<StudentPage />} />
+              <Route path="about" element={<Navigate to="/" replace />} />
               <Route
                 path="admin"
                 element={

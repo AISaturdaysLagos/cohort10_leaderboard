@@ -47,11 +47,11 @@ export function AdminGate({ children }: Props) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16">
         <div className="rounded border border-tri-border bg-tri-sand p-8 text-center shadow-card">
-          <h1 className="font-display text-2xl text-tri-forest">Mentor area unavailable</h1>
+          <h1 className="font-display text-2xl text-tri-forest">Admin area unavailable</h1>
           <p className="mt-4 font-body text-tri-lead text-tri-muted">
             Scoreboard tools are not configured yet. Set Firebase or a local admin password for development.
           </p>
-          <Link to="/" className="tri-btn-primary mt-8 inline-flex">
+          <Link to="/leaderboard" className="tri-btn-primary mt-8 inline-flex">
             Back to leaderboard
           </Link>
         </div>
@@ -71,13 +71,13 @@ export function AdminGate({ children }: Props) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-16">
         <div className="rounded border border-tri-border bg-tri-sand p-8 shadow-card">
-          <h1 className="font-display text-2xl text-tri-forest">Mentor sign-in</h1>
+          <h1 className="font-display text-2xl text-tri-forest">Admin sign-in</h1>
           <p className="mt-3 font-body text-tri-lead text-tri-muted">
             {usesFirebasePublished()
               ? adminAllowlistHint()
                 ? `Sign in with ${adminAllowlistHint()} to publish the leaderboard for all students.`
                 : "Sign in with your authorised Google account to publish the leaderboard for all students."
-              : "For mentors and organisers only (local development mode)."}
+              : "For admins and organisers only (local development mode)."}
           </p>
           {usesFirebasePublished() ? (
             <div className="mt-8 space-y-4">
@@ -99,7 +99,7 @@ export function AdminGate({ children }: Props) {
           {error && (
             <p className="mt-4 rounded border tri-alert-error">{error}</p>
           )}
-          <Link to="/" className="mt-6 inline-block font-body text-sm font-medium text-tri-leaf hover:underline">
+          <Link to="/leaderboard" className="mt-6 inline-block font-body text-sm font-medium text-tri-leaf hover:underline">
             ← Back to leaderboard
           </Link>
         </div>
@@ -173,7 +173,7 @@ function AdminAuthedShell({
       <div className="shrink-0 border-b border-tri-border bg-tri-mist">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-3 px-4 py-2">
           <span className="font-body text-xs text-tri-muted">
-            {signedInEmail ? `Signed in as ${signedInEmail}` : "Signed in as mentor"}
+            {signedInEmail ? `Signed in as ${signedInEmail}` : "Signed in as admin"}
             {usesFirebasePublished() ? " · Firebase" : " · local"}
           </span>
           <button type="button" className="tri-btn-muted py-1.5 text-sm" onClick={onLogout}>

@@ -181,23 +181,65 @@ export function computeTeamMetrics(rows, roster, week, focalActivity) {
 
 const SCORE_EPS = 1e-9;
 
-/** All teams tied for the highest value of `scoreFn` (empty if none). */
-function tiedAtTop(candidates, scoreFn) {
+/** Tie-break fields for team metrics — earlier fields win first; unresolved tie → no award. */
+const TEAM_SCORE_TIE_BREAK = [
+  "totalScore",
+  "completionRate",
+  "quizPoints",
+  "participationRate",
+  "effortPoints",
+  "consistencyPoints",
+  "avgQuiz",
+];
+
+const QUIZ_TIE_BREAK = ["avgQuiz", "totalScore", "completionRate", "quizPoints", "effortPoints"];
+
+const ATTENDANCE_TIE_BREAK = [
+  "totalScore",
+  "completionRate",
+  "quizPoints",
+  "effortPoints",
+  "consistencyPoints",
+];
+
+/** One winner after tie-break fields, or [] if still tied. */
+function pickSingleTeam(candidates, fields) {
   if (!candidates.length) return [];
-  let best = -Infinity;
-  for (const t of candidates) {
-    const v = scoreFn(t);
-    if (v > best) best = v;
+  let pool = candidates;
+  for (const f of fields) {
+    let best = -Infinity;
+    for (const c of pool) {
+      if (c[f] > best) best = c[f];
+    }
+    if (!Number.isFinite(best)) return [];
+    pool = pool.filter((c) => c[f] >= best - SCORE_EPS);
+    if (pool.length === 1) return [pool[0].team];
   }
-  if (!Number.isFinite(best)) return [];
-  return candidates.filter((t) => scoreFn(t) >= best - SCORE_EPS).map((t) => t.team);
+  return pool.length === 1 ? [pool[0].team] : [];
+}
+
+function pickSingleDelta(candidates, extraFields = []) {
+  if (!candidates.length) return [];
+  let pool = candidates;
+  let best = -Infinity;
+  for (const c of pool) {
+    if (c.delta > best) best = c.delta;
+  }
+  pool = pool.filter((c) => c.delta >= best - SCORE_EPS);
+  if (pool.length === 1) return [pool[0].team];
+  for (const f of extraFields) {
+    best = -Infinity;
+    for (const c of pool) {
+      if (c[f] > best) best = c[f];
+    }
+    pool = pool.filter((c) => c[f] >= best - SCORE_EPS);
+    if (pool.length === 1) return [pool[0].team];
+  }
+  return pool.length === 1 ? [pool[0].team] : [];
 }
 
 function teamOfTheWeekWinners(current) {
-  const topByScore = tiedAtTop(current, (t) => t.totalScore);
-  if (!topByScore.length) return [];
-  const tiedOnScore = current.filter((t) => topByScore.includes(t.team));
-  return tiedAtTop(tiedOnScore, (t) => t.completionRate);
+  return pickSingleTeam(current, TEAM_SCORE_TIE_BREAK);
 }
 
 function mostImprovedWinners(current, prev) {
@@ -208,9 +250,11 @@ function mostImprovedWinners(current, prev) {
     const p = byTeam.get(t.team);
     if (!p) continue;
     const d = t.totalScore - p.totalScore;
-    if (d > SCORE_EPS) deltas.push({ team: t.team, delta: d });
+    if (d > SCORE_EPS) {
+      deltas.push({ team: t.team, delta: d, totalScore: t.totalScore, completionRate: t.completionRate });
+    }
   }
-  return tiedAtTop(deltas, (x) => x.delta);
+  return pickSingleDelta(deltas, ["totalScore", "completionRate"]);
 }
 
 function comebackWinners(current, prev, awards) {
@@ -223,10 +267,10 @@ function comebackWinners(current, prev, awards) {
     if (p.totalScore >= awards.comebackPreviousScoreBelow - SCORE_EPS) continue;
     const d = t.totalScore - p.totalScore;
     if (d > awards.comebackMinPointGain + SCORE_EPS) {
-      eligible.push({ team: t.team, delta: d });
+      eligible.push({ team: t.team, delta: d, totalScore: t.totalScore, completionRate: t.completionRate });
     }
   }
-  return tiedAtTop(eligible, (x) => x.delta);
+  return pickSingleDelta(eligible, ["totalScore", "completionRate"]);
 }
 
 export function computeWeeklyAwards(current, previous) {
@@ -235,14 +279,15 @@ export function computeWeeklyAwards(current, previous) {
 
   const teamOfTheWeek = teamOfTheWeekWinners(current);
 
-  const deepLearners = tiedAtTop(current, (t) => t.avgQuiz).filter((team) => {
-    const row = current.find((t) => t.team === team);
-    return row && row.avgQuiz > SCORE_EPS;
-  });
+  const deepLearners = pickSingleTeam(
+    current.filter((t) => t.avgQuiz > SCORE_EPS),
+    QUIZ_TIE_BREAK,
+  );
 
-  const perfectAttendance = current
-    .filter((t) => t.participationRate >= 1 - SCORE_EPS)
-    .map((t) => t.team);
+  const perfectAttendance = pickSingleTeam(
+    current.filter((t) => t.participationRate >= 1 - SCORE_EPS),
+    ATTENDANCE_TIE_BREAK,
+  );
 
   const mostImproved = mostImprovedWinners(current, prev);
 

@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { COHORT10_URL, TRI_AI_ORG_URL } from "../lib/triAiBrand";
 import { ThemeToggle } from "./ThemeToggle";
+import { SiteFooter } from "./SiteFooter";
 import { TriAiLogo } from "./TriAiLogo";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,7 +19,10 @@ export function SiteChrome() {
           </Link>
           <nav className="flex flex-wrap items-center gap-1 font-sans text-sm sm:gap-0">
             <NavLink to="/" className={navClass} end>
-              Students
+              About
+            </NavLink>
+            <NavLink to="/leaderboard" className={navClass}>
+              Leaderboard
             </NavLink>
             <NavLink to="/admin" className={navClass}>
               Admin
@@ -46,6 +50,7 @@ export function SiteChrome() {
       <div className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </div>
+      <SiteFooter />
     </div>
   );
 }

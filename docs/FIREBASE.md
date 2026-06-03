@@ -155,10 +155,28 @@ Seed the initial map from a local file (gitignored):
 
 ```bash
 # team_assignments_with_names.csv in repo root
+
+# Step 1 — run alone; complete sign-in in the browser when it opens
+npm run firebase:login-reauth
+
+# Step 2 — after step 1 succeeds
 npm run firebase:seed-team-map
 ```
 
-Requires Application Default Credentials (`gcloud auth application-default login` or `GOOGLE_APPLICATION_CREDENTIALS`).
+Run the two commands **separately** (do not paste them on one line). If `login-reauth` finishes instantly with no browser, run:
+
+```bash
+node ./node_modules/firebase-tools/lib/bin/firebase.js login --reauth
+```
+
+**Service account (no browser):** Firebase Console → Project settings → Service accounts → Generate new private key, then:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-key.json"
+npm run firebase:seed-team-map
+```
+
+**Admin UI:** `/admin` → Team management → upload `team_assignments_with_names.csv` (replaces the shared map for all admins).
 
 ## Free tier
 

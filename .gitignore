@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.local
 team_assignments_with_names.csv
+*-service-account.json
+firebase-admin-key.json

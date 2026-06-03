@@ -28,3 +28,9 @@ export function formatSavedAt(iso: string): string {
     return iso;
   }
 }
+
+/** Roster last-active style: `2026-06-02 08:56:42 UTC` */
+export function formatUtcDateTime(d: Date | null): string {
+  if (!d) return "—";
+  return `${d.toISOString().slice(0, 19).replace("T", " ")} UTC`;
+}

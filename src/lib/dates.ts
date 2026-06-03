@@ -5,6 +5,15 @@ import { parseIsoDate, toIsoDate } from "./format";
 export function parseUtcDate(value: string | undefined | null): Date | null {
   if (value == null || String(value).trim() === "") return null;
   const s = String(value).trim();
+
+  // Skills Boost roster export: "2026-06-02 08:56:42 UTC"
+  const skillsBoost = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?\s*UTC$/i.exec(s);
+  if (skillsBoost) {
+    const frac = skillsBoost[3] ? `.${skillsBoost[3].padEnd(3, "0").slice(0, 3)}` : "";
+    const d = new Date(`${skillsBoost[1]}T${skillsBoost[2]}${frac}Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -83,8 +92,8 @@ export function activityDateExtent(rows: ActivityRow[]): { min: Date; max: Date 
   return { min: new Date(minT), max: new Date(maxT) };
 }
 
-/** Default scoring week (Monday ISO) from uploaded activity — latest course start, else latest activity date. */
-export function inferDefaultWeekMondayFromActivity(rows: ActivityRow[]): string | null {
+/** Latest meaningful activity timestamp from uploaded activity rows. */
+export function latestActivityAnchor(rows: ActivityRow[]): Date | null {
   let courseLatest: Date | null = null;
   let anyLatest: Date | null = null;
 
@@ -100,7 +109,24 @@ export function inferDefaultWeekMondayFromActivity(rows: ActivityRow[]): string 
     }
   }
 
-  const anchor = courseLatest ?? anyLatest;
+  return courseLatest ?? anyLatest;
+}
+
+/** Default scoring week (Monday ISO) from uploaded activity — latest course start, else latest activity date. */
+export function inferDefaultWeekMondayFromActivity(rows: ActivityRow[]): string | null {
+  const anchor = latestActivityAnchor(rows);
+  return anchor ? utcMondayIsoFromDate(anchor) : null;
+}
+
+/** Default scoring week from activity and/or roster last-active timestamps (uses the latest). */
+export function inferDefaultWeekMondayFromData(
+  rows: ActivityRow[],
+  roster: { lastActive: Date | null }[],
+): string | null {
+  let anchor = latestActivityAnchor(rows);
+  for (const r of roster) {
+    if (r.lastActive && (!anchor || r.lastActive > anchor)) anchor = r.lastActive;
+  }
   return anchor ? utcMondayIsoFromDate(anchor) : null;
 }
 

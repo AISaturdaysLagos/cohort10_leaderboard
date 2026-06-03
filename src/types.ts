@@ -94,3 +94,14 @@ export type TeamGroup = {
   teamName: string;
   members: string[];
 };
+
+/** Per-learner activity signals for the selected week and focal course. */
+export type MemberMetricBreakdown = {
+  email: string;
+  status: "active" | "pending" | "other" | "unmapped";
+  participated: boolean;
+  completed: boolean;
+  bestQuiz: number | null;
+  learningMinutes: number;
+  lastActive: Date | null;
+};

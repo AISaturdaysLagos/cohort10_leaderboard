@@ -1,4 +1,11 @@
-import type { ActivityRow, RosterRow, TeamMetricBreakdown, WeekBounds, WeeklyAwards } from "../types";
+import type {
+  ActivityRow,
+  MemberMetricBreakdown,
+  RosterRow,
+  TeamMetricBreakdown,
+  WeekBounds,
+  WeeklyAwards,
+} from "../types";
 
 export type MetricId = "completion" | "quiz" | "participation" | "effort" | "consistency";
 
@@ -36,6 +43,23 @@ export function computeTeamMetrics(
   week: WeekBounds,
   focalActivity: string,
 ): TeamMetricBreakdown[];
+
+export function computeMemberMetric(
+  email: string,
+  teamName: string,
+  roster: RosterRow[],
+  rows: ActivityRow[],
+  week: WeekBounds,
+  focalActivity: string,
+): MemberMetricBreakdown;
+
+export function computeMemberMetrics(
+  rows: ActivityRow[],
+  roster: RosterRow[],
+  week: WeekBounds,
+  focalActivity: string,
+  extraEmails?: { email: string; teamName: string }[],
+): Record<string, MemberMetricBreakdown>;
 
 export function computeWeeklyAwards(
   current: TeamMetricBreakdown[],

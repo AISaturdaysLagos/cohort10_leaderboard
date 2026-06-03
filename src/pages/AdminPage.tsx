@@ -4,7 +4,7 @@ import type { WeekBounds } from "../types";
 import {
   activityDateExtent,
   formatWeekLabel,
-  inferDefaultWeekMondayFromActivity,
+  inferDefaultWeekMondayFromData,
   listUtcWeekMondaysBetween,
   utcMondayIsoFromDate,
   weekBoundsFromMondayIso,
@@ -13,6 +13,7 @@ import { parseActivityCsv, parseRosterCsv, parseTeamLookupCsv, applyTeamMapToRos
 import {
   computeTeamMetrics,
   computeWeeklyAwards,
+  computeMemberMetrics,
   METRIC_DEFINITIONS,
   METRICS,
 } from "../lib/metrics.js";
@@ -40,20 +41,28 @@ import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
 import { subscribeTeamMap, usesFirebaseTeamMap } from "../lib/teamMap";
 import { TeamManagementTab } from "../components/TeamManagementTab";
 import { LEAGUE_NAME, LEARNERS_LABEL } from "../lib/triAiBrand";
+import { loadAdminDraft, saveAdminDraft } from "../lib/adminDraft";
 
 type AdminTab = "scoreboard" | "teams";
 
+function readInitialAdminDraft() {
+  return loadAdminDraft();
+}
+
 export function AdminPage() {
+  const initialDraftRef = useRef(readInitialAdminDraft());
   const [adminTab, setAdminTab] = useState<AdminTab>("scoreboard");
-  const [activityText, setActivityText] = useState<string>("");
-  const [rosterText, setRosterText] = useState<string>("");
+  const [activityText, setActivityText] = useState(() => initialDraftRef.current.activityCsv);
+  const [rosterText, setRosterText] = useState(() => initialDraftRef.current.rosterCsv);
+  const [activityFileName, setActivityFileName] = useState(() => initialDraftRef.current.activityFileName);
+  const [rosterFileName, setRosterFileName] = useState(() => initialDraftRef.current.rosterFileName);
   const [error, setError] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [clearingPublished, setClearingPublished] = useState(false);
-  const [weekMondayIso, setWeekMondayIso] = useState("");
-  const [parentOverride, setParentOverride] = useState("");
-  const [focalOverride, setFocalOverride] = useState("");
+  const [weekMondayIso, setWeekMondayIso] = useState(() => initialDraftRef.current.weekMondayIso);
+  const [parentOverride, setParentOverride] = useState(() => initialDraftRef.current.parentOverride);
+  const [focalOverride, setFocalOverride] = useState(() => initialDraftRef.current.focalOverride);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [savingSnapshot, setSavingSnapshot] = useState(false);
@@ -64,7 +73,21 @@ export function AdminPage() {
   const deferredActivityText = useDeferredValue(activityText);
   const deferredRosterText = useDeferredValue(rosterText);
   const deferredRemoteTeamMapCsv = useDeferredValue(remoteTeamMapCsv);
-  const activityWeekSyncedRef = useRef("");
+  const activityWeekSyncedRef = useRef(
+    `${initialDraftRef.current.activityCsv}\0${initialDraftRef.current.rosterCsv}`,
+  );
+
+  useEffect(() => {
+    saveAdminDraft({
+      activityCsv: activityText,
+      rosterCsv: rosterText,
+      activityFileName,
+      rosterFileName,
+      weekMondayIso,
+      parentOverride,
+      focalOverride,
+    });
+  }, [activityText, rosterText, activityFileName, rosterFileName, weekMondayIso, parentOverride, focalOverride]);
 
   const allActivityRows = useMemo(() => {
     if (!deferredActivityText.trim()) return [];
@@ -74,29 +97,6 @@ export function AdminPage() {
       return [];
     }
   }, [deferredActivityText]);
-
-  const inferredWeekMonday = useMemo(
-    () => inferDefaultWeekMondayFromActivity(allActivityRows),
-    [allActivityRows],
-  );
-
-  const effectiveWeekMondayIso =
-    weekMondayIso || inferredWeekMonday || utcMondayIsoFromDate(new Date());
-
-  useEffect(() => {
-    if (!deferredActivityText.trim()) {
-      activityWeekSyncedRef.current = "";
-      return;
-    }
-    if (activityWeekSyncedRef.current === deferredActivityText) return;
-    activityWeekSyncedRef.current = deferredActivityText;
-    const monday = inferDefaultWeekMondayFromActivity(allActivityRows);
-    if (monday) {
-      setWeekMondayIso(monday);
-      setFocalOverride("");
-      setParentOverride("");
-    }
-  }, [deferredActivityText, allActivityRows]);
 
   const teamMapCsv = useMemo(() => {
     if (deferredRemoteTeamMapCsv.trim()) return deferredRemoteTeamMapCsv;
@@ -139,6 +139,30 @@ export function AdminPage() {
       return 0;
     }
   }, [deferredRosterText, teamLookup]);
+
+  const inferredWeekMonday = useMemo(
+    () => inferDefaultWeekMondayFromData(allActivityRows, roster),
+    [allActivityRows, roster],
+  );
+
+  const effectiveWeekMondayIso =
+    weekMondayIso || inferredWeekMonday || utcMondayIsoFromDate(new Date());
+
+  useEffect(() => {
+    if (!deferredActivityText.trim() && !deferredRosterText.trim()) {
+      activityWeekSyncedRef.current = "";
+      return;
+    }
+    const syncKey = `${deferredActivityText}\0${deferredRosterText}`;
+    if (activityWeekSyncedRef.current === syncKey) return;
+    activityWeekSyncedRef.current = syncKey;
+    const monday = inferDefaultWeekMondayFromData(allActivityRows, roster);
+    if (monday) {
+      setWeekMondayIso(monday);
+      setFocalOverride("");
+      setParentOverride("");
+    }
+  }, [deferredActivityText, deferredRosterText, allActivityRows, roster]);
 
   const rows = useMemo(
     () => filterActivityByTeamMap(allActivityRows, teamLookup),
@@ -228,6 +252,18 @@ export function AdminPage() {
     }
   }, [rows, roster, week, focalActivity]);
 
+  const memberMetrics = useMemo(() => {
+    if (!focalActivity || !rows.length) return {};
+    const extraEmails = [...teamLookup.entries()].map(([email, teamName]) => ({ email, teamName }));
+    try {
+      return computeMemberMetrics(rows, roster, week, focalActivity, extraEmails);
+    } catch {
+      return {};
+    }
+  }, [rows, roster, week, focalActivity, teamLookup]);
+
+  const hasMemberScoringData = Boolean(focalActivity && rows.length);
+
   const previousMetrics = useMemo(() => {
     if (!compareId) return null;
     const e = history.find((h) => h.id === compareId);
@@ -297,6 +333,7 @@ export function AdminPage() {
     setError(null);
     const t = await f.text();
     setActivityText(t);
+    setActivityFileName(f.name);
     try {
       parseActivityCsv(t);
     } catch (e) {
@@ -309,6 +346,7 @@ export function AdminPage() {
     setError(null);
     try {
       setRosterText(await f.text());
+      setRosterFileName(f.name);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid roster CSV");
     }
@@ -470,7 +508,12 @@ export function AdminPage() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-10 px-4 py-10">
         {adminTab === "teams" ? (
-          <TeamManagementTab />
+          <TeamManagementTab
+            memberMetrics={memberMetrics}
+            hasMemberScoringData={hasMemberScoringData}
+            weekLabel={weekLabel}
+            focalActivity={focalActivity}
+          />
         ) : (
           <>
         {publishMsg && (
@@ -517,6 +560,11 @@ export function AdminPage() {
                   className="mt-2 block w-full text-sm"
                   onChange={(e) => void onActivityFile(e.target.files?.[0] ?? null)}
                 />
+                {(activityFileName || activityText.trim()) && (
+                  <span className="mt-1 block font-body text-xs text-tri-muted">
+                    {activityFileName ? `Loaded: ${activityFileName}` : "Restored from last session"}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="text-xs font-semibold uppercase tracking-wide text-tri-faint">
@@ -528,6 +576,11 @@ export function AdminPage() {
                   className="mt-2 block w-full text-sm"
                   onChange={(e) => void onRosterFile(e.target.files?.[0] ?? null)}
                 />
+                {(rosterFileName || rosterText.trim()) && (
+                  <span className="mt-1 block font-body text-xs text-tri-muted">
+                    {rosterFileName ? `Loaded: ${rosterFileName}` : "Restored from last session"}
+                  </span>
+                )}
                 <span className="mt-1 block font-body text-tri-nav text-tri-muted">
                   Expected columns include <strong>Email</strong> and <strong>Status</strong> (e.g. Active / Pending),
                   and usually <strong>Last active</strong>. Google program group members exports match this — there is

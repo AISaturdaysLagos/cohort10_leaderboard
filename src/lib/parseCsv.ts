@@ -120,6 +120,10 @@ export function parseRosterCsv(text: string): RosterRow[] {
       "Last active (UTC)",
       "Last Active (UTC)",
       "Last activity",
+      "Last Activity",
+      "Last active time",
+      "Last login",
+      "Last seen",
     ]);
     out.push({
       email,

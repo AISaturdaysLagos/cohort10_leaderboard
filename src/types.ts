@@ -82,6 +82,20 @@ export type StoredTeamMap = {
   updatedBy?: string;
 };
 
+/** Shared admin scoreboard uploads (Firestore `config/adminDraft`). */
+export type StoredAdminDraft = {
+  version: 1;
+  activityCsv: string;
+  rosterCsv: string;
+  activityFileName: string;
+  rosterFileName: string;
+  weekMondayIso: string;
+  parentOverride: string;
+  focalOverride: string;
+  savedAt: string;
+  updatedBy?: string;
+};
+
 /** One learner row in team_assignments_with_names.csv */
 export type TeamAssignmentRow = {
   email: string;

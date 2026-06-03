@@ -16,6 +16,7 @@ import {
   updateMemberInGroup,
   validateTeamAssignments,
 } from "../lib/teamAssignments";
+import { usesFirebaseAdminDraft } from "../lib/adminDraft";
 import { saveTeamMap, subscribeTeamMap, usesFirebaseTeamMap } from "../lib/teamMap";
 import { fmt1, formatSavedAt, formatUtcDateTime, pct } from "../lib/format";
 import { METRICS } from "../lib/metrics.constants";
@@ -279,6 +280,9 @@ export function TeamManagementTab({
         <section className="rounded border border-dashed border-tri-border bg-tri-mist/50 px-4 py-3 font-body text-sm text-tri-muted">
           Upload <strong className="text-tri-ink">activity CSV</strong> on the Scoreboard tab to see per-member
           participation, completion, quiz, and learning time here.
+          {usesFirebaseAdminDraft()
+            ? " The latest upload is shared via Firebase for all admins."
+            : null}
         </section>
       )}
 

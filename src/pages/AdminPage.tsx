@@ -41,7 +41,13 @@ import { useLatestCourseDate } from "../hooks/useLatestCourseDate";
 import { subscribeTeamMap, usesFirebaseTeamMap } from "../lib/teamMap";
 import { TeamManagementTab } from "../components/TeamManagementTab";
 import { LEAGUE_NAME, LEARNERS_LABEL } from "../lib/triAiBrand";
-import { loadAdminDraft, saveAdminDraft } from "../lib/adminDraft";
+import {
+  loadAdminDraft,
+  saveAdminDraft,
+  subscribeAdminDraft,
+  isRemoteDraftNewer,
+  usesFirebaseAdminDraft,
+} from "../lib/adminDraft";
 
 type AdminTab = "scoreboard" | "teams";
 
@@ -70,6 +76,7 @@ export function AdminPage() {
   const [viewHistoryId, setViewHistoryId] = useState<string>("");
   const [remoteTeamMapCsv, setRemoteTeamMapCsv] = useState("");
   const [teamMapLoading, setTeamMapLoading] = useState(true);
+  const [adminDraftLoading, setAdminDraftLoading] = useState(() => usesFirebaseAdminDraft());
   const deferredActivityText = useDeferredValue(activityText);
   const deferredRosterText = useDeferredValue(rosterText);
   const deferredRemoteTeamMapCsv = useDeferredValue(remoteTeamMapCsv);
@@ -88,6 +95,33 @@ export function AdminPage() {
       focalOverride,
     });
   }, [activityText, rosterText, activityFileName, rosterFileName, weekMondayIso, parentOverride, focalOverride]);
+
+  useEffect(() => {
+    return subscribeAdminDraft(
+      (remote) => {
+        setAdminDraftLoading(false);
+        if (!remote) return;
+        const local = loadAdminDraft();
+        if (!isRemoteDraftNewer(remote, local)) return;
+        setActivityText(remote.activityCsv);
+        setRosterText(remote.rosterCsv);
+        setActivityFileName(remote.activityFileName);
+        setRosterFileName(remote.rosterFileName);
+        setWeekMondayIso(remote.weekMondayIso);
+        setParentOverride(remote.parentOverride);
+        setFocalOverride(remote.focalOverride);
+        activityWeekSyncedRef.current = `${remote.activityCsv}\0${remote.rosterCsv}`;
+      },
+      (err) => {
+        setAdminDraftLoading(false);
+        setError(err.message);
+      },
+    );
+  }, []);
+
+  const adminDraftSource = usesFirebaseAdminDraft()
+    ? "shared Firebase admin draft"
+    : "saved on this browser";
 
   const allActivityRows = useMemo(() => {
     if (!deferredActivityText.trim()) return [];
@@ -334,6 +368,7 @@ export function AdminPage() {
     const t = await f.text();
     setActivityText(t);
     setActivityFileName(f.name);
+    saveAdminDraft({ activityCsv: t, activityFileName: f.name }, { immediate: true });
     try {
       parseActivityCsv(t);
     } catch (e) {
@@ -345,8 +380,10 @@ export function AdminPage() {
     if (!f) return;
     setError(null);
     try {
-      setRosterText(await f.text());
+      const text = await f.text();
+      setRosterText(text);
       setRosterFileName(f.name);
+      saveAdminDraft({ rosterCsv: text, rosterFileName: f.name }, { immediate: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid roster CSV");
     }
@@ -547,7 +584,8 @@ export function AdminPage() {
               >
                 Team management
               </button>{" "}
-              tab.
+              tab. Uploads and previews are saved to <strong>{adminDraftSource}</strong>
+              {adminDraftLoading ? " (loading…)" : ""} so all admins see the same files and member metrics.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="block">

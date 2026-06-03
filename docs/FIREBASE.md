@@ -151,6 +151,29 @@ Document path: `config/teamMap`
 
 The admin page loads this map first (expects **Email** + **Team_Name** or **Team** columns). Uploading a new CSV from `/admin` replaces the document for all mentors.
 
+### Admin scoreboard draft (activity, roster, week scope)
+
+Document path: `config/adminDraft`
+
+```json
+{
+  "version": 1,
+  "activityCsv": "…full Skills Boost activity export…",
+  "rosterCsv": "…program members export…",
+  "activityFileName": "activity.csv",
+  "rosterFileName": "roster.csv",
+  "weekMondayIso": "2026-06-01",
+  "parentOverride": "",
+  "focalOverride": "",
+  "savedAt": "2026-04-16T12:00:00.000Z",
+  "updatedBy": "mentor@tri-ai.org"
+}
+```
+
+Mentors see the same **import preview** and **Team management → member metrics** after signing in. Uploading a new **activity** or **roster** CSV on the Scoreboard tab updates this document immediately; week and focal course changes are debounced (~600ms). A copy is also kept in browser `localStorage` for fast reload.
+
+Firestore documents are limited to **1 MiB** — very large exports may fail to save (same constraint as `config/teamMap`).
+
 Seed the initial map from a local file (gitignored):
 
 ```bash

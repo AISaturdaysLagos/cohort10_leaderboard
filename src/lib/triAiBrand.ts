@@ -18,5 +18,8 @@ export const LEAGUE_NAME = "TRI AI Saturdays League";
 /** Cohort participants (student-facing copy) */
 export const LEARNERS_LABEL = "TRI AI Saturdays learners";
 
+/** Optional invite link to the cohort Discord server (shown when team channel is missing). */
+export const DISCORD_SERVER_INVITE = import.meta.env.VITE_DISCORD_SERVER_INVITE?.trim() ?? "";
+
 /** triAI wordmark tagline shown beside the logo */
 export const LOGO_TAGLINE = `Teaching · Research · Innovation · ${LEAGUE_NAME}`;

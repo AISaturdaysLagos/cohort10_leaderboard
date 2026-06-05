@@ -24,6 +24,9 @@ export function SiteChrome() {
             <NavLink to="/leaderboard" className={navClass}>
               Leaderboard
             </NavLink>
+            <NavLink to="/my-team" className={navClass}>
+              My team
+            </NavLink>
             <NavLink to="/admin" className={navClass}>
               Admin
             </NavLink>

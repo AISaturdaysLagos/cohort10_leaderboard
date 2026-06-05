@@ -3,5 +3,8 @@ dist
 .DS_Store
 *.local
 team_assignments_with_names.csv
+team_descriptions.csv
+team_discord_channels.csv
+team_leaders_assignment.csv
 *-service-account.json
 firebase-admin-key.json

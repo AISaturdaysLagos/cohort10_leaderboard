@@ -103,6 +103,84 @@ export type TeamAssignmentRow = {
   teamName: string;
 };
 
+/** Per-learner profile from team_leaders_assignment.csv (names, role, leader scores). */
+export type TeamMemberProfile = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  teamId: string;
+  teamName: string;
+  role: string;
+  leaderRank: number | null;
+  qualificationScore: number | null;
+  leadershipNum: number | null;
+  hoursNum: number | null;
+  projNum: number | null;
+  expScore: number | null;
+};
+
+/** Shared team leader profiles (Firestore `config/teamLeaders`). */
+export type StoredTeamLeaders = {
+  version: 1;
+  csv: string;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+/** Shared team descriptions (Firestore `config/teamDescriptions`). */
+export type StoredTeamDescriptions = {
+  version: 1;
+  csv: string;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+/** Shared team Discord channel links (Firestore `config/teamDiscord`). */
+export type StoredTeamDiscord = {
+  version: 1;
+  csv: string;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+/** One row from team_descriptions.csv */
+export type TeamDescription = {
+  teamId: string;
+  teamName: string;
+  teamSize: number | null;
+  category: string;
+  overview: string;
+  interestingDetails: string;
+};
+
+/** One row from team_discord_channels.csv */
+export type TeamDiscordLink = {
+  teamId: string;
+  teamName: string;
+  channelUrl: string;
+  channelName: string;
+};
+
+/** Resolved team portal view for a signed-in learner or admin preview. */
+export type TeamPortalMember = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  leaderRank: number | null;
+};
+
+export type TeamPortalContext = {
+  email: string;
+  teamId: string;
+  teamName: string;
+  description: TeamDescription | null;
+  discord: TeamDiscordLink | null;
+  profile: TeamMemberProfile | null;
+  isLeader: boolean;
+  members: TeamPortalMember[];
+};
+
 export type TeamGroup = {
   teamId: string;
   teamName: string;

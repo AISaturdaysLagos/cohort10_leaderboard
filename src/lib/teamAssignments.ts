@@ -229,13 +229,23 @@ export function rowsEqual(a: TeamAssignmentRow[], b: TeamAssignmentRow[]): boole
   return sa.every((r, i) => r.email === sb[i].email && r.teamId === sb[i].teamId && r.teamName === sb[i].teamName);
 }
 
-export function filterTeams(groups: TeamGroup[], query: string): TeamGroup[] {
+export function filterTeams(
+  groups: TeamGroup[],
+  query: string,
+  memberProfiles?: Map<string, { firstName?: string; lastName?: string; role?: string }>,
+): TeamGroup[] {
   const q = query.trim().toLowerCase();
   if (!q) return groups;
   const out: TeamGroup[] = [];
   for (const g of groups) {
     const teamMatch = g.teamName.toLowerCase().includes(q) || g.teamId.toLowerCase().includes(q);
-    const matchingMembers = g.members.filter((m) => m.includes(q));
+    const matchingMembers = g.members.filter((m) => {
+      if (m.includes(q)) return true;
+      const p = memberProfiles?.get(m);
+      if (!p) return false;
+      const name = [p.firstName, p.lastName].filter(Boolean).join(" ").toLowerCase();
+      return name.includes(q) || (p.role?.toLowerCase().includes(q) ?? false);
+    });
     if (teamMatch) {
       out.push(g);
     } else if (matchingMembers.length) {

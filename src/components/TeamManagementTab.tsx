@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MemberMetricBreakdown, TeamGroup } from "../types";
+import type { MemberMetricBreakdown, TeamGroup, TeamMemberProfile } from "../types";
 import {
   addMemberToGroup,
   addTeamGroup,
@@ -18,6 +18,20 @@ import {
 } from "../lib/teamAssignments";
 import { usesFirebaseAdminDraft } from "../lib/adminDraft";
 import { saveTeamMap, subscribeTeamMap, usesFirebaseTeamMap } from "../lib/teamMap";
+import {
+  formatMemberName,
+  isTeamLeaderRole,
+  parseTeamLeadersCsv,
+  sortMembersByProfile,
+  teamLeadersToCsv,
+  teamLeadersToLookup,
+} from "../lib/teamLeaders";
+import { saveTeamLeaders, subscribeTeamLeaders, usesFirebaseTeamLeaders } from "../lib/teamLeadersMap";
+import {
+  parseTeamDiscordCsv,
+  teamDiscordToCsv,
+} from "../lib/teamDiscord";
+import { saveTeamDiscord, subscribeTeamDiscord, usesFirebaseTeamDiscord } from "../lib/teamDiscordMap";
 import { fmt1, formatSavedAt, formatUtcDateTime, pct } from "../lib/format";
 import { METRICS } from "../lib/metrics.constants";
 
@@ -48,9 +62,17 @@ export function TeamManagementTab({
 }: TeamManagementTabProps) {
   const [remoteCsv, setRemoteCsv] = useState("");
   const [remoteMeta, setRemoteMeta] = useState<{ updatedAt: string; updatedBy?: string } | null>(null);
+  const [leadersCsv, setLeadersCsv] = useState("");
+  const [leadersMeta, setLeadersMeta] = useState<{ updatedAt: string; updatedBy?: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [leadersLoading, setLeadersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingLeaders, setUploadingLeaders] = useState(false);
+  const [discordCsv, setDiscordCsv] = useState("");
+  const [discordMeta, setDiscordMeta] = useState<{ updatedAt: string; updatedBy?: string } | null>(null);
+  const [discordLoading, setDiscordLoading] = useState(true);
+  const [uploadingDiscord, setUploadingDiscord] = useState(false);
   const [draftGroups, setDraftGroups] = useState<TeamGroup[]>([]);
   const [savedGroups, setSavedGroups] = useState<TeamGroup[]>([]);
   const [search, setSearch] = useState("");
@@ -93,9 +115,64 @@ export function TeamManagementTab({
     return unsub;
   }, [syncFromCsv]);
 
+  useEffect(() => {
+    setLeadersLoading(true);
+    const unsub = subscribeTeamLeaders(
+      (data) => {
+        setLeadersCsv(data?.csv ?? "");
+        setLeadersMeta(data ? { updatedAt: data.updatedAt, updatedBy: data.updatedBy } : null);
+        setLeadersLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setLeadersCsv("");
+        setLeadersLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    setDiscordLoading(true);
+    const unsub = subscribeTeamDiscord(
+      (data) => {
+        setDiscordCsv(data?.csv ?? "");
+        setDiscordMeta(data ? { updatedAt: data.updatedAt, updatedBy: data.updatedBy } : null);
+        setDiscordLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setDiscordCsv("");
+        setDiscordLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
+
+  const discordLinkCount = useMemo(() => {
+    if (!discordCsv.trim()) return 0;
+    try {
+      return parseTeamDiscordCsv(discordCsv).length;
+    } catch {
+      return 0;
+    }
+  }, [discordCsv]);
+
+  const memberProfiles = useMemo(() => {
+    if (!leadersCsv.trim()) return new Map<string, TeamMemberProfile>();
+    try {
+      return teamLeadersToLookup(parseTeamLeadersCsv(leadersCsv));
+    } catch {
+      return new Map<string, TeamMemberProfile>();
+    }
+  }, [leadersCsv]);
+
   const dirty = useMemo(() => !groupsEqual(draftGroups, savedGroups), [draftGroups, savedGroups]);
 
-  const visibleTeams = useMemo(() => filterTeams(draftGroups, search), [draftGroups, search]);
+  const visibleTeams = useMemo(
+    () => filterTeams(draftGroups, search, memberProfiles),
+    [draftGroups, search, memberProfiles],
+  );
   const searchActive = Boolean(search.trim());
 
   const searchSummary = useMemo(() => {
@@ -165,6 +242,75 @@ export function TeamManagementTab({
     } finally {
       setUploading(false);
     }
+  };
+
+  const onUploadLeaders = async (f: File | null) => {
+    if (!f || uploadingLeaders) return;
+    setError(null);
+    setUploadingLeaders(true);
+    try {
+      const text = await f.text();
+      const rows = parseTeamLeadersCsv(text);
+      const csv = teamLeadersToCsv(rows);
+      await saveTeamLeaders(csv);
+      setLeadersCsv(csv);
+      flash(
+        usesFirebaseTeamLeaders()
+          ? "Team leader profiles uploaded — all mentors will see names and roles."
+          : "Team leader profiles saved on this browser.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not upload team leaders CSV.");
+    } finally {
+      setUploadingLeaders(false);
+    }
+  };
+
+  const onDownloadLeaders = () => {
+    if (!leadersCsv.trim()) return;
+    const blob = new Blob([leadersCsv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "team_leaders_assignment.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onUploadDiscord = async (f: File | null) => {
+    if (!f || uploadingDiscord) return;
+    setError(null);
+    setUploadingDiscord(true);
+    try {
+      const text = await f.text();
+      const rows = parseTeamDiscordCsv(text);
+      if (rows.length === 0) {
+        throw new Error("No valid Discord channel URLs found. Use discord.com/channels/… or discord.gg/… links.");
+      }
+      const csv = teamDiscordToCsv(rows);
+      await saveTeamDiscord(csv);
+      setDiscordCsv(csv);
+      flash(
+        usesFirebaseTeamDiscord()
+          ? `Discord links uploaded (${rows.length} teams) — visible on My team for all learners.`
+          : `Discord links saved on this browser (${rows.length} teams).`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not upload Discord CSV.");
+    } finally {
+      setUploadingDiscord(false);
+    }
+  };
+
+  const onDownloadDiscord = () => {
+    if (!discordCsv.trim()) return;
+    const blob = new Blob([discordCsv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "team_discord_channels.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const onDownload = () => {
@@ -253,13 +399,100 @@ export function TeamManagementTab({
           <input
             type="search"
             className="w-full rounded border border-tri-border-md bg-tri-sand px-3 py-2 font-body text-tri-nav sm:max-w-md"
-            placeholder="Search team name, ID, or member email…"
+            placeholder="Search team, email, name, or role…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {searchSummary ? (
             <p className="mt-2 font-body text-xs text-tri-muted">{searchSummary} matching</p>
           ) : null}
+        </div>
+      </section>
+
+      <section className="rounded border border-tri-border bg-tri-sand p-6 shadow-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-display text-tri-section text-tri-forest">Team leaders & member profiles</h2>
+            <p className="mt-2 max-w-2xl font-body text-tri-lead text-tri-muted">
+              Upload <strong>team_leaders_assignment.csv</strong> to show each learner&apos;s name, role (Team Leader
+              1/2 or Member), and leader qualification scores in the member tables below. Team assignments above
+              still control who is on each team.
+            </p>
+            <p className="mt-2 font-body text-tri-nav text-tri-muted">
+              {memberProfiles.size} profiles loaded
+              {leadersMeta?.updatedAt ? (
+                <>
+                  {" "}
+                  · Last saved {formatUpdatedAt(leadersMeta.updatedAt)}
+                  {leadersMeta.updatedBy ? ` · ${leadersMeta.updatedBy}` : ""}
+                </>
+              ) : null}
+              {!leadersCsv.trim() && !leadersLoading ? " · No leader profiles saved yet" : null}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <label className="tri-btn-muted cursor-pointer">
+              {uploadingLeaders ? "Uploading…" : "Upload leaders CSV"}
+              <input
+                type="file"
+                accept=".csv"
+                className="sr-only"
+                disabled={uploadingLeaders || leadersLoading}
+                onChange={(e) => void onUploadLeaders(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <button
+              type="button"
+              className="tri-btn-muted"
+              onClick={onDownloadLeaders}
+              disabled={!leadersCsv.trim()}
+            >
+              Download leaders CSV
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded border border-tri-border bg-tri-sand p-6 shadow-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-display text-tri-section text-tri-forest">Team Discord channels</h2>
+            <p className="mt-2 max-w-2xl font-body text-tri-lead text-tri-muted">
+              Upload <strong>team_discord_channels.csv</strong> with each team&apos;s Discord channel link. Learners
+              see an <strong>Open channel</strong> button on <strong>My team</strong> for their assigned team.
+            </p>
+            <p className="mt-2 font-body text-tri-nav text-tri-muted">
+              {discordLinkCount} channel link{discordLinkCount === 1 ? "" : "s"} loaded
+              {discordMeta?.updatedAt ? (
+                <>
+                  {" "}
+                  · Last saved {formatUpdatedAt(discordMeta.updatedAt)}
+                  {discordMeta.updatedBy ? ` · ${discordMeta.updatedBy}` : ""}
+                </>
+              ) : null}
+              {!discordCsv.trim() && !discordLoading ? " · No Discord links saved yet" : null}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <label className="tri-btn-muted cursor-pointer">
+              {uploadingDiscord ? "Uploading…" : "Upload Discord CSV"}
+              <input
+                type="file"
+                accept=".csv"
+                className="sr-only"
+                disabled={uploadingDiscord || discordLoading}
+                onChange={(e) => void onUploadDiscord(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <button
+              type="button"
+              className="tri-btn-muted"
+              onClick={onDownloadDiscord}
+              disabled={!discordCsv.trim()}
+            >
+              Download Discord CSV
+            </button>
+          </div>
         </div>
       </section>
 
@@ -325,6 +558,7 @@ export function TeamManagementTab({
                   : undefined
               }
               memberMetrics={memberMetrics}
+              memberProfiles={memberProfiles}
               showMemberMetrics={hasMemberScoringData}
               onRename={(name) => mutate((g) => renameTeamInGroups(g, team.teamId, name))}
               onRemoveTeam={() => {
@@ -365,6 +599,7 @@ function TeamCard({
   searchActive,
   fullMemberCount,
   memberMetrics,
+  memberProfiles,
   showMemberMetrics,
   onRename,
   onRemoveTeam,
@@ -377,6 +612,7 @@ function TeamCard({
   /** When search narrows members, total roster size on the full team. */
   fullMemberCount?: number;
   memberMetrics: Record<string, MemberMetricBreakdown>;
+  memberProfiles: Map<string, TeamMemberProfile>;
   showMemberMetrics: boolean;
   onRename: (name: string) => void;
   onRemoveTeam: () => void;
@@ -407,6 +643,19 @@ function TeamCard({
     }
   };
 
+  const sortedMembers = useMemo(
+    () => sortMembersByProfile(team.members, memberProfiles),
+    [team.members, memberProfiles],
+  );
+
+  const leaderSummary = useMemo(() => {
+    return sortedMembers
+      .map((email) => memberProfiles.get(email))
+      .filter((p): p is TeamMemberProfile => Boolean(p && isTeamLeaderRole(p.role)))
+      .map((p) => `${formatMemberName(p) || p.email} (${p.role})`)
+      .join(" · ");
+  }, [sortedMembers, memberProfiles]);
+
   return (
     <li className="overflow-hidden rounded-tri border border-tri-border bg-tri-surface shadow-card">
       <details className="group" open={searchActive || undefined}>
@@ -420,6 +669,12 @@ function TeamCard({
               {fullMemberCount != null && fullMemberCount !== team.members.length
                 ? `${team.members.length} of ${fullMemberCount} members match`
                 : `${team.members.length} member${team.members.length === 1 ? "" : "s"}`}
+              {leaderSummary ? (
+                <>
+                  {" "}
+                  · <span className="text-tri-ink">{leaderSummary}</span>
+                </>
+              ) : null}
             </p>
           </div>
           <span
@@ -474,10 +729,12 @@ function TeamCard({
           {team.members.length > 0 ? (
             <div className="mt-4 overflow-x-auto rounded border border-tri-border bg-tri-surface">
               {showMemberMetrics ? (
-                <table className="w-full min-w-[760px] border-collapse font-body text-sm">
+                <table className="w-full min-w-[920px] border-collapse font-body text-sm">
                   <thead>
                     <tr className="border-b border-tri-border bg-tri-mist/50 text-left text-[10px] font-bold uppercase tracking-wide text-tri-faint">
                       <th className="px-3 py-2">Email</th>
+                      <th className="px-3 py-2">Name</th>
+                      <th className="px-3 py-2">Role</th>
                       <th className="px-3 py-2">Status</th>
                       <th className="px-3 py-2">Last active</th>
                       <th className="px-3 py-2">Participated</th>
@@ -488,10 +745,11 @@ function TeamCard({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {team.members.map((email) => (
+                    {sortedMembers.map((email) => (
                       <MemberRow
                         key={email}
                         email={email}
+                        profile={memberProfiles.get(email)}
                         metric={memberMetrics[email]}
                         showMetrics
                         editingEmail={editingEmail}
@@ -512,10 +770,11 @@ function TeamCard({
                 </table>
               ) : (
                 <ul className="divide-y divide-[var(--border)]">
-                  {team.members.map((email) => (
+                  {sortedMembers.map((email) => (
                     <MemberRow
                       key={email}
                       email={email}
+                      profile={memberProfiles.get(email)}
                       editingEmail={editingEmail}
                       emailDraft={emailDraft}
                       onStartEdit={() => {
@@ -574,6 +833,7 @@ function TeamCard({
 
 function MemberRow({
   email,
+  profile,
   metric,
   showMetrics = false,
   editingEmail,
@@ -585,6 +845,7 @@ function MemberRow({
   onRemove,
 }: {
   email: string;
+  profile?: TeamMemberProfile;
   metric?: MemberMetricBreakdown;
   showMetrics?: boolean;
   editingEmail: string | null;
@@ -596,6 +857,8 @@ function MemberRow({
   onRemove: () => void;
 }) {
   const editing = editingEmail === email;
+  const displayName = formatMemberName(profile);
+  const role = profile?.role?.trim() ?? "";
 
   const actions = (
     <div className="flex shrink-0 justify-end gap-2">
@@ -633,6 +896,12 @@ function MemberRow({
             <span title={email}>{email}</span>
           )}
         </td>
+        <td className="max-w-[10rem] truncate px-3 py-2 text-tri-ink" title={displayName || undefined}>
+          {displayName || <span className="text-tri-muted">—</span>}
+        </td>
+        <td className="px-3 py-2">
+          {role ? <MemberRoleBadge role={role} /> : <span className="text-tri-muted">—</span>}
+        </td>
         <td className="px-3 py-2">
           {metric ? (
             <MemberStatusBadge status={metric.status} />
@@ -662,27 +931,57 @@ function MemberRow({
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-      {editing ? (
-        <div className="flex min-w-0 flex-1 gap-2">
-          <input
-            className="min-w-0 flex-1 rounded border border-tri-border-md bg-tri-sand px-2 py-1.5 text-sm"
-            value={emailDraft}
-            onChange={(e) => onEmailDraftChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onCommitEdit();
-              if (e.key === "Escape") onCancelEdit();
-            }}
-            autoFocus
-          />
-          <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCommitEdit}>
-            Save
-          </button>
-        </div>
-      ) : (
-        <span className="min-w-0 truncate font-body text-sm text-tri-ink">{email}</span>
-      )}
-      {actions}
+      <div className="min-w-0 flex-1">
+        {editing ? (
+          <div className="flex min-w-0 flex-1 gap-2">
+            <input
+              className="min-w-0 flex-1 rounded border border-tri-border-md bg-tri-sand px-2 py-1.5 text-sm"
+              value={emailDraft}
+              onChange={(e) => onEmailDraftChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onCommitEdit();
+                if (e.key === "Escape") onCancelEdit();
+              }}
+              autoFocus
+            />
+            <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCommitEdit}>
+              Save
+            </button>
+            <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCancelEdit}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="truncate font-body text-sm text-tri-ink" title={email}>
+              {email}
+            </p>
+            {(displayName || role) && (
+              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-tri-muted">
+                {displayName ? <span className="text-tri-ink">{displayName}</span> : null}
+                {role ? <MemberRoleBadge role={role} /> : null}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+      {!editing && actions}
     </li>
+  );
+}
+
+function MemberRoleBadge({ role }: { role: string }) {
+  const leader = isTeamLeaderRole(role);
+  return (
+    <span
+      className={
+        leader
+          ? "inline-flex rounded-full bg-tri-orange/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tri-orange"
+          : "inline-flex rounded-full bg-tri-mist px-2 py-0.5 text-[10px] font-semibold text-tri-muted"
+      }
+    >
+      {role}
+    </span>
   );
 }
 

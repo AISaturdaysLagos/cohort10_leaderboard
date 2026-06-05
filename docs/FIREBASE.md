@@ -201,6 +201,85 @@ npm run firebase:seed-team-map
 
 **Admin UI:** `/admin` → Team management → upload `team_assignments_with_names.csv` (replaces the shared map for all admins).
 
+### Team leader profiles (names, roles, scores)
+
+Document path: `config/teamLeaders`
+
+```json
+{
+  "version": 1,
+  "csv": "…full team_leaders_assignment.csv export…",
+  "updatedAt": "2026-04-16T12:00:00.000Z",
+  "updatedBy": "mentor@tri-ai.org"
+}
+```
+
+Expected CSV columns: **Email**, **First name**, **Last name**, **Team_ID**, **Team_Name**, **Role** (Team Leader 1 / Team Leader 2 / Member), **Leader_Rank**, plus optional qualification score columns.
+
+Team management shows **Name** and **Role** on each member row (leaders listed first). Team assignments (`config/teamMap`) still control roster membership; leader profiles add display metadata only.
+
+```bash
+npm run firebase:seed-team-leaders
+# or seed both assignments + leaders:
+npm run firebase:seed-config
+```
+
+**Admin UI:** `/admin` → Team management → **Upload leaders CSV** (`team_leaders_assignment.csv`).
+
+### Team descriptions (student portal)
+
+Document path: `config/teamDescriptions`
+
+```json
+{
+  "version": 1,
+  "csv": "…full team_descriptions.csv…",
+  "updatedAt": "2026-04-16T12:00:00.000Z",
+  "updatedBy": "seed-script"
+}
+```
+
+CSV columns: **Team_ID**, **Team_Name**, **Team_Size**, **Category**, **Overview**, **Interesting_Details**.
+
+```bash
+npm run firebase:seed-team-descriptions
+# included in:
+npm run firebase:seed-config
+```
+
+### Student team portal (`/my-team`)
+
+Learners sign in with a **passwordless email link** (Firebase Authentication). After sign-in, the app reads `config/teamMap`, `config/teamLeaders`, and `config/teamDescriptions` and shows:
+
+- **All learners:** team name + description
+- **Team leaders** (Role = Team Leader 1 / 2): full roster with names and roles
+- **Admins** (allowlisted mentor accounts): team picker + preview as student or team leader
+
+Enable **Email link** sign-in in Firebase Console → Authentication → Sign-in method.
+
+Add your site URL (and `localhost` for dev) under Authentication → Settings → **Authorized domains**.
+
+### Team Discord channels
+
+Document path: `config/teamDiscord`
+
+CSV file: `team_discord_channels.csv` (197 rows — one per team)
+
+| Column | Description |
+|--------|-------------|
+| **Team_ID** | Matches team assignments |
+| **Team_Name** | e.g. Serengeti |
+| **Channel_Name** | Optional display name (e.g. `serengeti`) |
+| **Discord_Channel_URL** | `https://discord.com/channels/SERVER_ID/CHANNEL_ID` or a channel invite |
+
+Right-click your team channel in Discord → **Copy link**, then paste into the CSV. Re-upload from Admin → Team management or:
+
+```bash
+npm run firebase:seed-team-discord
+```
+
+Optional env var **`VITE_DISCORD_SERVER_INVITE`** — general server invite shown alongside the team channel button (see `.env.example`).
+
 ## Free tier
 
 Firestore + Auth on the **Spark plan** are sufficient for a weekly cohort leaderboard (reads/writes well within free quotas for thousands of learners checking once per week).

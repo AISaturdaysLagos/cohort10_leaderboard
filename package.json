@@ -14,7 +14,11 @@
     "firebase:login": "node ./node_modules/firebase-tools/lib/bin/firebase.js login",
     "firebase:login-reauth": "node ./node_modules/firebase-tools/lib/bin/firebase.js login --reauth",
     "firebase:deploy-rules": "node ./node_modules/firebase-tools/lib/bin/firebase.js deploy --only firestore:rules",
-    "firebase:seed-team-map": "node scripts/seed-team-map.mjs"
+    "firebase:seed-team-map": "node scripts/seed-team-map.mjs",
+    "firebase:seed-team-leaders": "node scripts/seed-team-leaders.mjs",
+    "firebase:seed-team-descriptions": "node scripts/seed-team-descriptions.mjs",
+    "firebase:seed-team-discord": "node scripts/seed-team-discord.mjs",
+    "firebase:seed-config": "node scripts/seed-team-map.mjs && node scripts/seed-team-leaders.mjs && node scripts/seed-team-descriptions.mjs && node scripts/seed-team-discord.mjs"
   },
   "dependencies": {
     "firebase": "^11.10.0",

@@ -1,10 +1,10 @@
 import type { TeamAssignmentRow, TeamDescription, TeamDiscordLink, TeamMemberProfile, TeamPortalContext, TeamPortalMember } from "../types";
-import { groupTeams } from "./teamAssignments";
+import { canonicalizeEmailForMatch, groupTeams } from "./teamAssignments";
 import { findTeamDiscordLink } from "./teamDiscord";
 import { formatMemberName, isTeamLeaderRole, sortMembersByProfile } from "./teamLeaders";
 
 function normEmail(email: string): string {
-  return email.trim().toLowerCase();
+  return canonicalizeEmailForMatch(email);
 }
 
 function findDescription(

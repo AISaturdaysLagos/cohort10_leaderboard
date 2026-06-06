@@ -8,6 +8,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "./firebase";
+import { canonicalizeEmailForMatch } from "./teamAssignments";
 
 const DEV_SESSION_KEY = "tri-saturdays-league-learner-email";
 
@@ -23,9 +24,20 @@ export function devLearnerEmail(): string | null {
   return sessionStorage.getItem(DEV_SESSION_KEY);
 }
 
+function firebaseUserEmail(user: User): string | null {
+  const direct = user.email?.trim();
+  if (direct) return canonicalizeEmailForMatch(direct);
+  for (const provider of user.providerData) {
+    const providerEmail = provider.email?.trim();
+    if (providerEmail) return canonicalizeEmailForMatch(providerEmail);
+  }
+  return null;
+}
+
 export function currentLearnerEmail(user: User | null): string | null {
-  if (user?.email) return user.email.trim().toLowerCase();
-  return devLearnerEmail();
+  if (user) return firebaseUserEmail(user);
+  const dev = devLearnerEmail();
+  return dev ? canonicalizeEmailForMatch(dev) : null;
 }
 
 export function subscribeLearnerAuth(onChange: (email: string | null) => void): () => void {
@@ -43,7 +55,7 @@ export function subscribeLearnerAuth(onChange: (email: string | null) => void): 
 }
 
 function normalizeLearnerEmail(email: string): string | null {
-  const normalized = email.trim().toLowerCase();
+  const normalized = canonicalizeEmailForMatch(email);
   if (!normalized.includes("@") || !normalized.includes(".")) {
     return null;
   }
@@ -128,8 +140,8 @@ export async function learnerLogout(): Promise<void> {
 }
 
 export function devSignInWithEmail(email: string): string | null {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) return "Enter a valid email address.";
+  const normalized = normalizeLearnerEmail(email);
+  if (!normalized) return "Enter a valid email address.";
   sessionStorage.setItem(DEV_SESSION_KEY, normalized);
   return null;
 }

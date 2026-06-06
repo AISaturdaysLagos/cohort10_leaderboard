@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { waitForFirebaseUser } from "../lib/firebase";
 import { parseTeamAssignmentsCsv } from "../lib/teamAssignments";
 import { parseTeamDescriptionsCsv, teamDescriptionsById } from "../lib/teamDescriptions";
@@ -12,6 +12,7 @@ import type { TeamAssignmentRow, TeamDescription, TeamDiscordLink, TeamMemberPro
 
 export type TeamPortalData = {
   loading: boolean;
+  rosterLoaded: boolean;
   error: string | null;
   assignments: TeamAssignmentRow[];
   profiles: Map<string, TeamMemberProfile>;
@@ -19,13 +20,18 @@ export type TeamPortalData = {
   discordLinks: Map<string, TeamDiscordLink>;
 };
 
-function once(fn: () => void): () => void {
-  let called = false;
-  return () => {
-    if (called) return;
-    called = true;
-    fn();
-  };
+type StreamKey = "map" | "leaders" | "descriptions" | "discord";
+
+type StreamSeen = Record<StreamKey, boolean>;
+
+function markStreamReady(
+  key: StreamKey,
+  seen: { current: StreamSeen },
+  onReady: () => void,
+): void {
+  if (seen.current[key]) return;
+  seen.current[key] = true;
+  onReady();
 }
 
 export function useTeamPortalData(enabled: boolean): TeamPortalData {
@@ -34,43 +40,59 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [descriptionsCsv, setDescriptionsCsv] = useState("");
   const [discordCsv, setDiscordCsv] = useState("");
   const [loading, setLoading] = useState(enabled);
+  const [rosterLoaded, setRosterLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const streamsSeen = useRef<StreamSeen>({
+    map: false,
+    leaders: false,
+    descriptions: false,
+    discord: false,
+  });
 
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
+      setRosterLoaded(false);
       setTeamMapCsv("");
       setLeadersCsv("");
       setDescriptionsCsv("");
       setDiscordCsv("");
+      streamsSeen.current = { map: false, leaders: false, descriptions: false, discord: false };
       return;
     }
 
     let cancelled = false;
     const cleanups: (() => void)[] = [];
+    streamsSeen.current = { map: false, leaders: false, descriptions: false, discord: false };
+    setRosterLoaded(false);
+    setLoading(true);
+
+    let pending = 4;
+    const streamFinished = () => {
+      pending -= 1;
+      if (pending <= 0) setLoading(false);
+    };
 
     void (async () => {
-      setLoading(true);
       setError(null);
       await waitForFirebaseUser();
       if (cancelled) return;
-
-      let pending = 4;
-      const done = once(() => setLoading(false));
-      const streamDone = () => {
-        pending -= 1;
-        if (pending <= 0) done();
-      };
 
       cleanups.push(
         subscribeTeamMap(
           (data) => {
             setTeamMapCsv(data?.csv ?? "");
-            streamDone();
+            markStreamReady("map", streamsSeen, () => {
+              setRosterLoaded(true);
+              streamFinished();
+            });
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            streamDone();
+            markStreamReady("map", streamsSeen, () => {
+              setRosterLoaded(true);
+              streamFinished();
+            });
           },
         ),
       );
@@ -78,11 +100,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamLeaders(
           (data) => {
             setLeadersCsv(data?.csv ?? "");
-            streamDone();
+            markStreamReady("leaders", streamsSeen, streamFinished);
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            streamDone();
+            markStreamReady("leaders", streamsSeen, streamFinished);
           },
         ),
       );
@@ -90,11 +112,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamDescriptions(
           (data) => {
             setDescriptionsCsv(data?.csv ?? "");
-            streamDone();
+            markStreamReady("descriptions", streamsSeen, streamFinished);
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            streamDone();
+            markStreamReady("descriptions", streamsSeen, streamFinished);
           },
         ),
       );
@@ -102,11 +124,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamDiscord(
           (data) => {
             setDiscordCsv(data?.csv ?? "");
-            streamDone();
+            markStreamReady("discord", streamsSeen, streamFinished);
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            streamDone();
+            markStreamReady("discord", streamsSeen, streamFinished);
           },
         ),
       );
@@ -155,5 +177,5 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
     }
   }, [discordCsv]);
 
-  return { loading, error, assignments, profiles, descriptions, discordLinks };
+  return { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks };
 }

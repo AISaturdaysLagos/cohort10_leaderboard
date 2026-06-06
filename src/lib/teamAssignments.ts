@@ -1,8 +1,27 @@
 import Papa from "papaparse";
 import type { TeamAssignmentRow, TeamGroup } from "../types";
 
+/** Lowercase + Gmail/googlemail dot and plus-alias normalization for roster matching. */
+export function canonicalizeEmailForMatch(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at <= 0) return normalized;
+
+  let local = normalized.slice(0, at);
+  let domain = normalized.slice(at + 1);
+  if (domain === "googlemail.com") domain = "gmail.com";
+
+  if (domain === "gmail.com") {
+    const plus = local.indexOf("+");
+    if (plus >= 0) local = local.slice(0, plus);
+    local = local.replace(/\./g, "");
+  }
+
+  return `${local}@${domain}`;
+}
+
 function normEmail(s: string): string {
-  return s.trim().toLowerCase();
+  return canonicalizeEmailForMatch(s);
 }
 
 function stripBom(text: string): string {

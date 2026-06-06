@@ -1,8 +1,9 @@
 import Papa from "papaparse";
 import type { TeamMemberProfile } from "../types";
+import { canonicalizeEmailForMatch } from "./teamAssignments";
 
 function normEmail(s: string): string {
-  return s.trim().toLowerCase();
+  return canonicalizeEmailForMatch(s);
 }
 
 function stripBom(text: string): string {

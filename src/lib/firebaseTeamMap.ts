@@ -1,6 +1,6 @@
-import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamMap } from "../types";
-import { fetchFirestoreWithAuthRetry } from "./firestoreFetch";
+import { fetchFirestoreDocPreferServer } from "./firestoreFetch";
 import { getFirebaseDb } from "./firebase";
 
 const COLLECTION = "config";
@@ -33,13 +33,9 @@ export async function saveTeamMapToFirestore(csv: string, updatedBy?: string): P
   return payload;
 }
 
-/** Always reads from Firestore server (no offline/cache snapshot). */
+/** Prefer server; retry offline races; fall back to standard getDoc. */
 export async function fetchTeamMapFromServer(): Promise<StoredTeamMap | null> {
-  return fetchFirestoreWithAuthRetry(async () => {
-    const snap = await getDocFromServer(teamMapRef());
-    if (!snap.exists()) return null;
-    return normalizeTeamMap(snap.data());
-  });
+  return fetchFirestoreDocPreferServer(teamMapRef(), normalizeTeamMap);
 }
 
 export function subscribeTeamMapFromFirestore(

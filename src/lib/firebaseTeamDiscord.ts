@@ -1,6 +1,6 @@
-import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamDiscord } from "../types";
-import { fetchFirestoreWithAuthRetry } from "./firestoreFetch";
+import { fetchFirestoreDocPreferServer } from "./firestoreFetch";
 import { getFirebaseDb } from "./firebase";
 
 const COLLECTION = "config";
@@ -37,11 +37,7 @@ export async function saveTeamDiscordToFirestore(
 }
 
 export async function fetchTeamDiscordFromServer(): Promise<StoredTeamDiscord | null> {
-  return fetchFirestoreWithAuthRetry(async () => {
-    const snap = await getDocFromServer(teamDiscordRef());
-    if (!snap.exists()) return null;
-    return normalizeTeamDiscord(snap.data());
-  });
+  return fetchFirestoreDocPreferServer(teamDiscordRef(), normalizeTeamDiscord);
 }
 
 export function subscribeTeamDiscordFromFirestore(

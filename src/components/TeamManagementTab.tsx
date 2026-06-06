@@ -22,9 +22,12 @@ import {
   formatMemberName,
   isTeamLeaderRole,
   parseTeamLeadersCsv,
+  profilesCsvEqual,
   sortMembersByProfile,
+  TEAM_ROLE_OPTIONS,
   teamLeadersToCsv,
   teamLeadersToLookup,
+  upsertMemberProfile,
 } from "../lib/teamLeaders";
 import { saveTeamLeaders, subscribeTeamLeaders, usesFirebaseTeamLeaders } from "../lib/teamLeadersMap";
 import {
@@ -64,6 +67,8 @@ export function TeamManagementTab({
   const [remoteMeta, setRemoteMeta] = useState<{ updatedAt: string; updatedBy?: string } | null>(null);
   const [leadersCsv, setLeadersCsv] = useState("");
   const [leadersMeta, setLeadersMeta] = useState<{ updatedAt: string; updatedBy?: string } | null>(null);
+  const [leaderRows, setLeaderRows] = useState<TeamMemberProfile[]>([]);
+  const [savedLeaderRows, setSavedLeaderRows] = useState<TeamMemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [leadersLoading, setLeadersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,6 +101,21 @@ export function TeamManagementTab({
     }
   }, []);
 
+  const syncLeadersFromCsv = useCallback((csv: string) => {
+    if (!csv.trim()) {
+      setLeaderRows([]);
+      setSavedLeaderRows([]);
+      return;
+    }
+    try {
+      const rows = parseTeamLeadersCsv(csv);
+      setLeaderRows(rows);
+      setSavedLeaderRows(rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not parse team leader profiles.");
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     const unsub = subscribeTeamMap(
@@ -119,13 +139,16 @@ export function TeamManagementTab({
     setLeadersLoading(true);
     const unsub = subscribeTeamLeaders(
       (data) => {
-        setLeadersCsv(data?.csv ?? "");
+        const csv = data?.csv ?? "";
+        setLeadersCsv(csv);
         setLeadersMeta(data ? { updatedAt: data.updatedAt, updatedBy: data.updatedBy } : null);
+        syncLeadersFromCsv(csv);
         setLeadersLoading(false);
       },
       (err) => {
         setError(err.message);
         setLeadersCsv("");
+        syncLeadersFromCsv("");
         setLeadersLoading(false);
       },
     );
@@ -158,16 +181,13 @@ export function TeamManagementTab({
     }
   }, [discordCsv]);
 
-  const memberProfiles = useMemo(() => {
-    if (!leadersCsv.trim()) return new Map<string, TeamMemberProfile>();
-    try {
-      return teamLeadersToLookup(parseTeamLeadersCsv(leadersCsv));
-    } catch {
-      return new Map<string, TeamMemberProfile>();
-    }
-  }, [leadersCsv]);
+  const memberProfiles = useMemo(() => teamLeadersToLookup(leaderRows), [leaderRows]);
 
   const dirty = useMemo(() => !groupsEqual(draftGroups, savedGroups), [draftGroups, savedGroups]);
+  const leadersDirty = useMemo(
+    () => !profilesCsvEqual(leaderRows, savedLeaderRows),
+    [leaderRows, savedLeaderRows],
+  );
 
   const visibleTeams = useMemo(
     () => filterTeams(draftGroups, search, memberProfiles),
@@ -223,6 +243,50 @@ export function TeamManagementTab({
     flash("Discarded unsaved changes.");
   };
 
+  const persistLeaders = async (rows: TeamMemberProfile[], successMsg: string) => {
+    const csv = teamLeadersToCsv(rows);
+    setSaving(true);
+    setError(null);
+    try {
+      await saveTeamLeaders(csv);
+      setLeaderRows(rows);
+      setSavedLeaderRows(rows);
+      setLeadersCsv(csv);
+      flash(successMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSaveLeaders = async () => {
+    try {
+      await persistLeaders(
+        leaderRows,
+        usesFirebaseTeamLeaders()
+          ? "Team leader profiles saved — names and roles updated for all mentors."
+          : "Team leader profiles saved on this browser.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save team leader profiles.");
+    }
+  };
+
+  const onDiscardLeaders = () => {
+    setLeaderRows(savedLeaderRows);
+    setError(null);
+    flash("Discarded unsaved leader profile changes.");
+  };
+
+  const onUpdateMemberProfile = (
+    teamId: string,
+    teamName: string,
+    email: string,
+    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+  ) => {
+    setError(null);
+    setLeaderRows((rows) => upsertMemberProfile(rows, email, teamId, teamName, patch));
+  };
+
   const onUpload = async (f: File | null) => {
     if (!f || uploading) return;
     setError(null);
@@ -254,6 +318,8 @@ export function TeamManagementTab({
       const csv = teamLeadersToCsv(rows);
       await saveTeamLeaders(csv);
       setLeadersCsv(csv);
+      setLeaderRows(rows);
+      setSavedLeaderRows(rows);
       flash(
         usesFirebaseTeamLeaders()
           ? "Team leader profiles uploaded — all mentors will see names and roles."
@@ -267,8 +333,9 @@ export function TeamManagementTab({
   };
 
   const onDownloadLeaders = () => {
-    if (!leadersCsv.trim()) return;
-    const blob = new Blob([leadersCsv], { type: "text/csv;charset=utf-8" });
+    const csv = teamLeadersToCsv(leaderRows);
+    if (!csv.trim()) return;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -414,12 +481,12 @@ export function TeamManagementTab({
           <div>
             <h2 className="font-display text-tri-section text-tri-forest">Team leaders & member profiles</h2>
             <p className="mt-2 max-w-2xl font-body text-tri-lead text-tri-muted">
-              Upload <strong>team_leaders_assignment.csv</strong> to show each learner&apos;s name, role (Team Leader
-              1/2 or Member), and leader qualification scores in the member tables below. Team assignments above
-              still control who is on each team.
+              Upload <strong>team_leaders_assignment.csv</strong> or edit each member&apos;s name and role (Team Leader
+              1/2 or Member) in the tables below. Team assignments above still control who is on each team.
             </p>
             <p className="mt-2 font-body text-tri-nav text-tri-muted">
               {memberProfiles.size} profiles loaded
+              {leadersDirty ? " · Unsaved leader profile changes" : ""}
               {leadersMeta?.updatedAt ? (
                 <>
                   {" "}
@@ -445,10 +512,20 @@ export function TeamManagementTab({
               type="button"
               className="tri-btn-muted"
               onClick={onDownloadLeaders}
-              disabled={!leadersCsv.trim()}
+              disabled={!leaderRows.length}
             >
               Download leaders CSV
             </button>
+            {leadersDirty && (
+              <>
+                <button type="button" className="tri-btn-muted" onClick={onDiscardLeaders} disabled={saving}>
+                  Discard profiles
+                </button>
+                <button type="button" className="tri-btn-primary" onClick={() => void onSaveLeaders()} disabled={saving}>
+                  {saving ? "Saving…" : "Save profiles"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -572,21 +649,49 @@ export function TeamManagementTab({
               onUpdateMember={(oldEmail, newEmail) =>
                 mutate((g) => updateMemberInGroup(g, team.teamId, oldEmail, newEmail))
               }
+              onUpdateMemberProfile={(email, patch) =>
+                onUpdateMemberProfile(team.teamId, team.teamName, email, patch)
+              }
             />
           ))}
         </ul>
       )}
 
-      {dirty && (
+      {(dirty || leadersDirty) && (
         <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-tri border border-tri-orange/40 bg-tri-chrome px-4 py-3 shadow-tri">
-          <p className="font-body text-sm text-tri-muted">You have unsaved team changes.</p>
-          <div className="flex gap-2">
-            <button type="button" className="tri-btn-muted py-2" onClick={onDiscard} disabled={saving}>
-              Discard
-            </button>
-            <button type="button" className="tri-btn-primary py-2" onClick={() => void onSave()} disabled={saving}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
+          <p className="font-body text-sm text-tri-muted">
+            {dirty && leadersDirty
+              ? "You have unsaved team and leader profile changes."
+              : dirty
+                ? "You have unsaved team changes."
+                : "You have unsaved leader profile changes."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {dirty && (
+              <button type="button" className="tri-btn-muted py-2" onClick={onDiscard} disabled={saving}>
+                Discard teams
+              </button>
+            )}
+            {leadersDirty && (
+              <button type="button" className="tri-btn-muted py-2" onClick={onDiscardLeaders} disabled={saving}>
+                Discard profiles
+              </button>
+            )}
+            {dirty && (
+              <button type="button" className="tri-btn-primary py-2" onClick={() => void onSave()} disabled={saving}>
+                {saving ? "Saving…" : "Save teams"}
+              </button>
+            )}
+            {leadersDirty && (
+              <button
+                type="button"
+                className="tri-btn-primary py-2"
+                onClick={() => void onSaveLeaders()}
+                disabled={saving}
+              >
+                {saving ? "Saving…" : "Save profiles"}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -606,6 +711,7 @@ function TeamCard({
   onAddMember,
   onRemoveMember,
   onUpdateMember,
+  onUpdateMemberProfile,
 }: {
   team: TeamGroup;
   searchActive?: boolean;
@@ -619,6 +725,10 @@ function TeamCard({
   onAddMember: (email: string) => void;
   onRemoveMember: (email: string) => void;
   onUpdateMember: (oldEmail: string, newEmail: string) => void;
+  onUpdateMemberProfile: (
+    email: string,
+    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+  ) => void;
 }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(team.teamName);
@@ -764,6 +874,7 @@ function TeamCard({
                         onRemove={() => {
                           if (window.confirm(`Remove ${email} from ${team.teamName}?`)) onRemoveMember(email);
                         }}
+                        onUpdateProfile={(patch) => onUpdateMemberProfile(email, patch)}
                       />
                     ))}
                   </tbody>
@@ -787,6 +898,7 @@ function TeamCard({
                       onRemove={() => {
                         if (window.confirm(`Remove ${email} from ${team.teamName}?`)) onRemoveMember(email);
                       }}
+                      onUpdateProfile={(patch) => onUpdateMemberProfile(email, patch)}
                     />
                   ))}
                 </ul>
@@ -843,6 +955,7 @@ function MemberRow({
   onCommitEdit,
   onCancelEdit,
   onRemove,
+  onUpdateProfile,
 }: {
   email: string;
   profile?: TeamMemberProfile;
@@ -855,10 +968,56 @@ function MemberRow({
   onCommitEdit: () => void;
   onCancelEdit: () => void;
   onRemove: () => void;
+  onUpdateProfile: (
+    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+  ) => void;
 }) {
   const editing = editingEmail === email;
   const displayName = formatMemberName(profile);
-  const role = profile?.role?.trim() ?? "";
+  const role = profile?.role?.trim() || "Member";
+  const roleValue = TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number])
+    ? role
+    : role || "Member";
+
+  const profileFields = (
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <label className="flex min-w-0 flex-1 flex-col gap-0.5 font-body text-xs">
+        <span className="font-semibold uppercase tracking-wide text-tri-faint">First name</span>
+        <input
+          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
+          value={profile?.firstName ?? ""}
+          placeholder="—"
+          onChange={(e) => onUpdateProfile({ firstName: e.target.value })}
+        />
+      </label>
+      <label className="flex min-w-0 flex-1 flex-col gap-0.5 font-body text-xs">
+        <span className="font-semibold uppercase tracking-wide text-tri-faint">Last name</span>
+        <input
+          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
+          value={profile?.lastName ?? ""}
+          placeholder="—"
+          onChange={(e) => onUpdateProfile({ lastName: e.target.value })}
+        />
+      </label>
+      <label className="flex min-w-[10rem] flex-col gap-0.5 font-body text-xs">
+        <span className="font-semibold uppercase tracking-wide text-tri-faint">Role</span>
+        <select
+          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
+          value={roleValue}
+          onChange={(e) => onUpdateProfile({ role: e.target.value })}
+        >
+          {TEAM_ROLE_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+          {role && !TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? (
+            <option value={role}>{role}</option>
+          ) : null}
+        </select>
+      </label>
+    </div>
+  );
 
   const actions = (
     <div className="flex shrink-0 justify-end gap-2">
@@ -896,11 +1055,37 @@ function MemberRow({
             <span title={email}>{email}</span>
           )}
         </td>
-        <td className="max-w-[10rem] truncate px-3 py-2 text-tri-ink" title={displayName || undefined}>
-          {displayName || <span className="text-tri-muted">—</span>}
+        <td className="max-w-[10rem] px-3 py-2 text-tri-ink">
+          <div className="flex flex-col gap-1">
+            <input
+              className="w-full min-w-0 rounded border border-tri-border-md bg-tri-sand px-2 py-0.5 text-xs"
+              value={profile?.firstName ?? ""}
+              placeholder="First"
+              onChange={(e) => onUpdateProfile({ firstName: e.target.value })}
+            />
+            <input
+              className="w-full min-w-0 rounded border border-tri-border-md bg-tri-sand px-2 py-0.5 text-xs"
+              value={profile?.lastName ?? ""}
+              placeholder="Last"
+              onChange={(e) => onUpdateProfile({ lastName: e.target.value })}
+            />
+          </div>
         </td>
-        <td className="px-3 py-2">
-          {role ? <MemberRoleBadge role={role} /> : <span className="text-tri-muted">—</span>}
+        <td className="min-w-[9rem] px-3 py-2">
+          <select
+            className="w-full max-w-[9rem] rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-xs"
+            value={roleValue}
+            onChange={(e) => onUpdateProfile({ role: e.target.value })}
+          >
+            {TEAM_ROLE_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+            {role && !TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? (
+              <option value={role}>{role}</option>
+            ) : null}
+          </select>
         </td>
         <td className="px-3 py-2">
           {metric ? (
@@ -930,42 +1115,50 @@ function MemberRow({
   }
 
   return (
-    <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 flex-1">
-        {editing ? (
-          <div className="flex min-w-0 flex-1 gap-2">
-            <input
-              className="min-w-0 flex-1 rounded border border-tri-border-md bg-tri-sand px-2 py-1.5 text-sm"
-              value={emailDraft}
-              onChange={(e) => onEmailDraftChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onCommitEdit();
-                if (e.key === "Escape") onCancelEdit();
-              }}
-              autoFocus
-            />
-            <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCommitEdit}>
-              Save
-            </button>
-            <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCancelEdit}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <>
-            <p className="truncate font-body text-sm text-tri-ink" title={email}>
-              {email}
-            </p>
-            {(displayName || role) && (
-              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-tri-muted">
-                {displayName ? <span className="text-tri-ink">{displayName}</span> : null}
-                {role ? <MemberRoleBadge role={role} /> : null}
+    <li className="flex flex-col gap-3 px-3 py-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <div className="flex min-w-0 flex-1 gap-2">
+              <input
+                className="min-w-0 flex-1 rounded border border-tri-border-md bg-tri-sand px-2 py-1.5 text-sm"
+                value={emailDraft}
+                onChange={(e) => onEmailDraftChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCommitEdit();
+                  if (e.key === "Escape") onCancelEdit();
+                }}
+                autoFocus
+              />
+              <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCommitEdit}>
+                Save
+              </button>
+              <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCancelEdit}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="truncate font-body text-sm text-tri-ink" title={email}>
+                {email}
               </p>
-            )}
-          </>
-        )}
+              {displayName ? (
+                <p className="mt-0.5 text-xs text-tri-muted">
+                  <span className="text-tri-ink">{displayName}</span>
+                  {isTeamLeaderRole(role) ? (
+                    <>
+                      {" "}
+                      <MemberRoleBadge role={role} />
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+        {!editing && actions}
       </div>
-      {!editing && actions}
+      {!editing ? profileFields : null}
     </li>
   );
 }

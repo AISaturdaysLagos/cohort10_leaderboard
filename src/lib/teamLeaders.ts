@@ -56,6 +56,55 @@ export function isTeamLeaderRole(role: string): boolean {
   return role.trim().toLowerCase().startsWith("team leader");
 }
 
+export const TEAM_ROLE_OPTIONS = ["Member", "Team Leader 1", "Team Leader 2"] as const;
+
+export function leaderRankFromRole(role: string): number | null {
+  const r = role.trim();
+  if (r === "Team Leader 1") return 1;
+  if (r === "Team Leader 2") return 2;
+  return null;
+}
+
+export function upsertMemberProfile(
+  rows: TeamMemberProfile[],
+  email: string,
+  teamId: string,
+  teamName: string,
+  patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+): TeamMemberProfile[] {
+  const norm = normEmail(email);
+  if (!norm) return rows;
+  const idx = rows.findIndex((r) => r.email === norm);
+  const existing = idx >= 0 ? rows[idx] : null;
+  const role = patch.role ?? existing?.role ?? "Member";
+  const leaderRank =
+    patch.leaderRank !== undefined ? patch.leaderRank : leaderRankFromRole(role);
+  const next: TeamMemberProfile = {
+    email: norm,
+    firstName: patch.firstName ?? existing?.firstName ?? "",
+    lastName: patch.lastName ?? existing?.lastName ?? "",
+    teamId,
+    teamName,
+    role,
+    leaderRank,
+    qualificationScore: existing?.qualificationScore ?? null,
+    leadershipNum: existing?.leadershipNum ?? null,
+    hoursNum: existing?.hoursNum ?? null,
+    projNum: existing?.projNum ?? null,
+    expScore: existing?.expScore ?? null,
+  };
+  if (idx >= 0) {
+    const copy = [...rows];
+    copy[idx] = next;
+    return copy;
+  }
+  return [...rows, next];
+}
+
+export function profilesCsvEqual(a: TeamMemberProfile[], b: TeamMemberProfile[]): boolean {
+  return teamLeadersToCsv(a) === teamLeadersToCsv(b);
+}
+
 /** Parse team_leaders_assignment.csv (names, role, leader scores). */
 export function parseTeamLeadersCsv(text: string): TeamMemberProfile[] {
   const clean = stripBom(text);

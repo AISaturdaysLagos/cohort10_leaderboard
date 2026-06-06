@@ -13,7 +13,6 @@ import {
   removeTeamFromGroups,
   renameTeamInGroups,
   teamAssignmentsToCsv,
-  updateMemberInGroup,
   validateTeamAssignments,
 } from "../lib/teamAssignments";
 import { usesFirebaseAdminDraft } from "../lib/adminDraft";
@@ -281,7 +280,7 @@ export function TeamManagementTab({
     teamId: string,
     teamName: string,
     email: string,
-    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+    patch: Partial<Pick<TeamMemberProfile, "role" | "leaderRank">>,
   ) => {
     setError(null);
     setLeaderRows((rows) => upsertMemberProfile(rows, email, teamId, teamName, patch));
@@ -481,8 +480,8 @@ export function TeamManagementTab({
           <div>
             <h2 className="font-display text-tri-section text-tri-forest">Team leaders & member profiles</h2>
             <p className="mt-2 max-w-2xl font-body text-tri-lead text-tri-muted">
-              Upload <strong>team_leaders_assignment.csv</strong> or edit each member&apos;s name and role (Team Leader
-              1/2 or Member) in the tables below. Team assignments above still control who is on each team.
+              Upload <strong>team_leaders_assignment.csv</strong> or set each member&apos;s role (Team Leader 1/2 or
+              Member) in the tables below. Team assignments above still control who is on each team.
             </p>
             <p className="mt-2 font-body text-tri-nav text-tri-muted">
               {memberProfiles.size} profiles loaded
@@ -646,9 +645,6 @@ export function TeamManagementTab({
               }}
               onAddMember={(email) => mutate((g) => addMemberToGroup(g, team.teamId, email))}
               onRemoveMember={(email) => mutate((g) => removeMemberFromGroup(g, team.teamId, email))}
-              onUpdateMember={(oldEmail, newEmail) =>
-                mutate((g) => updateMemberInGroup(g, team.teamId, oldEmail, newEmail))
-              }
               onUpdateMemberProfile={(email, patch) =>
                 onUpdateMemberProfile(team.teamId, team.teamName, email, patch)
               }
@@ -710,7 +706,6 @@ function TeamCard({
   onRemoveTeam,
   onAddMember,
   onRemoveMember,
-  onUpdateMember,
   onUpdateMemberProfile,
 }: {
   team: TeamGroup;
@@ -724,17 +719,14 @@ function TeamCard({
   onRemoveTeam: () => void;
   onAddMember: (email: string) => void;
   onRemoveMember: (email: string) => void;
-  onUpdateMember: (oldEmail: string, newEmail: string) => void;
   onUpdateMemberProfile: (
     email: string,
-    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
+    patch: Partial<Pick<TeamMemberProfile, "role" | "leaderRank">>,
   ) => void;
 }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(team.teamName);
   const [newEmail, setNewEmail] = useState("");
-  const [editingEmail, setEditingEmail] = useState<string | null>(null);
-  const [emailDraft, setEmailDraft] = useState("");
 
   useEffect(() => {
     if (!editingName) setNameDraft(team.teamName);
@@ -743,14 +735,6 @@ function TeamCard({
   const commitRename = () => {
     onRename(nameDraft);
     setEditingName(false);
-  };
-
-  const commitEmailEdit = () => {
-    if (editingEmail) {
-      onUpdateMember(editingEmail, emailDraft);
-      setEditingEmail(null);
-      setEmailDraft("");
-    }
   };
 
   const sortedMembers = useMemo(
@@ -862,19 +846,10 @@ function TeamCard({
                         profile={memberProfiles.get(email)}
                         metric={memberMetrics[email]}
                         showMetrics
-                        editingEmail={editingEmail}
-                        emailDraft={emailDraft}
-                        onStartEdit={() => {
-                          setEditingEmail(email);
-                          setEmailDraft(email);
-                        }}
-                        onEmailDraftChange={setEmailDraft}
-                        onCommitEdit={commitEmailEdit}
-                        onCancelEdit={() => setEditingEmail(null)}
                         onRemove={() => {
                           if (window.confirm(`Remove ${email} from ${team.teamName}?`)) onRemoveMember(email);
                         }}
-                        onUpdateProfile={(patch) => onUpdateMemberProfile(email, patch)}
+                        onUpdateRole={(role) => onUpdateMemberProfile(email, { role })}
                       />
                     ))}
                   </tbody>
@@ -886,19 +861,10 @@ function TeamCard({
                       key={email}
                       email={email}
                       profile={memberProfiles.get(email)}
-                      editingEmail={editingEmail}
-                      emailDraft={emailDraft}
-                      onStartEdit={() => {
-                        setEditingEmail(email);
-                        setEmailDraft(email);
-                      }}
-                      onEmailDraftChange={setEmailDraft}
-                      onCommitEdit={commitEmailEdit}
-                      onCancelEdit={() => setEditingEmail(null)}
                       onRemove={() => {
                         if (window.confirm(`Remove ${email} from ${team.teamName}?`)) onRemoveMember(email);
                       }}
-                      onUpdateProfile={(patch) => onUpdateMemberProfile(email, patch)}
+                      onUpdateRole={(role) => onUpdateMemberProfile(email, { role })}
                     />
                   ))}
                 </ul>
@@ -948,145 +914,33 @@ function MemberRow({
   profile,
   metric,
   showMetrics = false,
-  editingEmail,
-  emailDraft,
-  onStartEdit,
-  onEmailDraftChange,
-  onCommitEdit,
-  onCancelEdit,
   onRemove,
-  onUpdateProfile,
+  onUpdateRole,
 }: {
   email: string;
   profile?: TeamMemberProfile;
   metric?: MemberMetricBreakdown;
   showMetrics?: boolean;
-  editingEmail: string | null;
-  emailDraft: string;
-  onStartEdit: () => void;
-  onEmailDraftChange: (v: string) => void;
-  onCommitEdit: () => void;
-  onCancelEdit: () => void;
   onRemove: () => void;
-  onUpdateProfile: (
-    patch: Partial<Pick<TeamMemberProfile, "firstName" | "lastName" | "role" | "leaderRank">>,
-  ) => void;
+  onUpdateRole: (role: string) => void;
 }) {
-  const editing = editingEmail === email;
   const displayName = formatMemberName(profile);
   const role = profile?.role?.trim() || "Member";
-  const roleValue = TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number])
-    ? role
-    : role || "Member";
 
-  const profileFields = (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      <label className="flex min-w-0 flex-1 flex-col gap-0.5 font-body text-xs">
-        <span className="font-semibold uppercase tracking-wide text-tri-faint">First name</span>
-        <input
-          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
-          value={profile?.firstName ?? ""}
-          placeholder="—"
-          onChange={(e) => onUpdateProfile({ firstName: e.target.value })}
-        />
-      </label>
-      <label className="flex min-w-0 flex-1 flex-col gap-0.5 font-body text-xs">
-        <span className="font-semibold uppercase tracking-wide text-tri-faint">Last name</span>
-        <input
-          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
-          value={profile?.lastName ?? ""}
-          placeholder="—"
-          onChange={(e) => onUpdateProfile({ lastName: e.target.value })}
-        />
-      </label>
-      <label className="flex min-w-[10rem] flex-col gap-0.5 font-body text-xs">
-        <span className="font-semibold uppercase tracking-wide text-tri-faint">Role</span>
-        <select
-          className="rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
-          value={roleValue}
-          onChange={(e) => onUpdateProfile({ role: e.target.value })}
-        >
-          {TEAM_ROLE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-          {role && !TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? (
-            <option value={role}>{role}</option>
-          ) : null}
-        </select>
-      </label>
-    </div>
-  );
-
-  const actions = (
-    <div className="flex shrink-0 justify-end gap-2">
-      {!editing && (
-        <button
-          type="button"
-          className="text-xs font-semibold text-tri-orange hover:text-tri-leaf"
-          onClick={onStartEdit}
-        >
-          Edit
-        </button>
-      )}
-      <button type="button" className="text-xs font-semibold text-red-800 hover:underline" onClick={onRemove}>
-        Remove
-      </button>
-    </div>
+  const roleSelect = (
+    <MemberRoleSelect role={role} onChange={onUpdateRole} className={showMetrics ? "max-w-[9rem] text-xs" : "text-sm"} />
   );
 
   if (showMetrics) {
     return (
       <tr className="text-tri-ink">
-        <td className="max-w-[12rem] truncate px-3 py-2">
-          {editing ? (
-            <input
-              className="w-full min-w-0 rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-sm"
-              value={emailDraft}
-              onChange={(e) => onEmailDraftChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onCommitEdit();
-                if (e.key === "Escape") onCancelEdit();
-              }}
-              autoFocus
-            />
-          ) : (
-            <span title={email}>{email}</span>
-          )}
+        <td className="max-w-[12rem] truncate px-3 py-2" title={email}>
+          {email}
         </td>
-        <td className="max-w-[10rem] px-3 py-2 text-tri-ink">
-          <div className="flex flex-col gap-1">
-            <input
-              className="w-full min-w-0 rounded border border-tri-border-md bg-tri-sand px-2 py-0.5 text-xs"
-              value={profile?.firstName ?? ""}
-              placeholder="First"
-              onChange={(e) => onUpdateProfile({ firstName: e.target.value })}
-            />
-            <input
-              className="w-full min-w-0 rounded border border-tri-border-md bg-tri-sand px-2 py-0.5 text-xs"
-              value={profile?.lastName ?? ""}
-              placeholder="Last"
-              onChange={(e) => onUpdateProfile({ lastName: e.target.value })}
-            />
-          </div>
+        <td className="max-w-[10rem] truncate px-3 py-2 text-tri-ink" title={displayName || undefined}>
+          {displayName || <span className="text-tri-muted">—</span>}
         </td>
-        <td className="min-w-[9rem] px-3 py-2">
-          <select
-            className="w-full max-w-[9rem] rounded border border-tri-border-md bg-tri-sand px-2 py-1 text-xs"
-            value={roleValue}
-            onChange={(e) => onUpdateProfile({ role: e.target.value })}
-          >
-            {TEAM_ROLE_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-            {role && !TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? (
-              <option value={role}>{role}</option>
-            ) : null}
-          </select>
-        </td>
+        <td className="min-w-[9rem] px-3 py-2">{roleSelect}</td>
         <td className="px-3 py-2">
           {metric ? (
             <MemberStatusBadge status={metric.status} />
@@ -1109,72 +963,65 @@ function MemberRow({
         <td className="px-3 py-2 text-tri-muted">
           {metric ? `${fmt1(metric.learningMinutes)} min` : "—"}
         </td>
-        <td className="px-3 py-2">{actions}</td>
+        <td className="px-3 py-2 text-right">
+          <button type="button" className="text-xs font-semibold text-red-800 hover:underline" onClick={onRemove}>
+            Remove
+          </button>
+        </td>
       </tr>
     );
   }
 
   return (
-    <li className="flex flex-col gap-3 px-3 py-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          {editing ? (
-            <div className="flex min-w-0 flex-1 gap-2">
-              <input
-                className="min-w-0 flex-1 rounded border border-tri-border-md bg-tri-sand px-2 py-1.5 text-sm"
-                value={emailDraft}
-                onChange={(e) => onEmailDraftChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onCommitEdit();
-                  if (e.key === "Escape") onCancelEdit();
-                }}
-                autoFocus
-              />
-              <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCommitEdit}>
-                Save
-              </button>
-              <button type="button" className="tri-btn-muted py-1.5 text-xs" onClick={onCancelEdit}>
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="truncate font-body text-sm text-tri-ink" title={email}>
-                {email}
-              </p>
-              {displayName ? (
-                <p className="mt-0.5 text-xs text-tri-muted">
-                  <span className="text-tri-ink">{displayName}</span>
-                  {isTeamLeaderRole(role) ? (
-                    <>
-                      {" "}
-                      <MemberRoleBadge role={role} />
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
-        {!editing && actions}
+    <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-body text-sm text-tri-ink" title={email}>
+          {email}
+        </p>
+        {displayName ? (
+          <p className="mt-0.5 text-xs text-tri-muted">
+            <span className="text-tri-ink">{displayName}</span>
+          </p>
+        ) : null}
       </div>
-      {!editing ? profileFields : null}
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 font-body text-xs">
+          <span className="font-semibold uppercase tracking-wide text-tri-faint">Role</span>
+          {roleSelect}
+        </label>
+        <button type="button" className="text-xs font-semibold text-red-800 hover:underline" onClick={onRemove}>
+          Remove
+        </button>
+      </div>
     </li>
   );
 }
 
-function MemberRoleBadge({ role }: { role: string }) {
-  const leader = isTeamLeaderRole(role);
+function MemberRoleSelect({
+  role,
+  onChange,
+  className = "",
+}: {
+  role: string;
+  onChange: (role: string) => void;
+  className?: string;
+}) {
+  const roleValue = TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? role : role || "Member";
   return (
-    <span
-      className={
-        leader
-          ? "inline-flex rounded-full bg-tri-orange/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tri-orange"
-          : "inline-flex rounded-full bg-tri-mist px-2 py-0.5 text-[10px] font-semibold text-tri-muted"
-      }
+    <select
+      className={`w-full rounded border border-tri-border-md bg-tri-sand px-2 py-1 ${className}`}
+      value={roleValue}
+      onChange={(e) => onChange(e.target.value)}
     >
-      {role}
-    </span>
+      {TEAM_ROLE_OPTIONS.map((opt) => (
+        <option key={opt} value={opt}>
+          {opt}
+        </option>
+      ))}
+      {role && !TEAM_ROLE_OPTIONS.includes(role as (typeof TEAM_ROLE_OPTIONS)[number]) ? (
+        <option value={role}>{role}</option>
+      ) : null}
+    </select>
   );
 }
 

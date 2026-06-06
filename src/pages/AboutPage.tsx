@@ -35,6 +35,9 @@ export function AboutPage() {
             <Link className="tri-btn-primary" to="/leaderboard">
               View this week&apos;s board
             </Link>
+            <Link className="tri-btn-outline-panel" to="/my-team">
+              Find my team
+            </Link>
             <a className="tri-btn-outline-panel" href={COHORT10_URL} target="_blank" rel="noreferrer">
               Cohort 10 programme
             </a>
@@ -66,6 +69,45 @@ export function AboutPage() {
           </div>
         </section>
 
+        <section className="rounded-tri border border-tri-border bg-tri-surface p-8 shadow-card">
+          <h2 className="font-display text-tri-section text-tri-forest">Your team</h2>
+          <div className="mt-4 space-y-4 font-body text-tri-lead leading-relaxed text-tri-muted">
+            <p>
+              Every learner is assigned to a <strong className="text-tri-ink">named cohort team</strong> — often
+              named after a landmark, river, park, or place across Africa. Teams are fixed for the programme so
+              you can build rhythm with the same people each week.
+            </p>
+            <p>
+              Use <strong className="text-tri-ink">My team</strong> in the menu to look up your assignment. Sign
+              in with the <strong className="text-tri-ink">same email you use on Skills Boost</strong> — we send
+              a one-time link to your inbox, then show your team page.
+            </p>
+          </div>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            <TeamInfoCard
+              title="Team name & story"
+              body="Each team has a short description — what the place is, why it matters, and a fun fact. It is a conversation starter for your squad, not part of the score."
+            />
+            <TeamInfoCard
+              title="Team Discord"
+              body="Your team page includes links to your team's Discord channel and invite. Use Discord to coordinate, ask questions, and stay in touch between Saturday sessions."
+            />
+            <TeamInfoCard
+              title="Team leaders"
+              body="Each team has two team leaders. They can sign in on My team to see the full roster — names, emails, and roles — so they can support teammates who need a nudge."
+            />
+            <TeamInfoCard
+              title="Wrong team?"
+              body="If your email is not found or you think you are on the wrong team, contact an admin. They can update cohort assignments in the admin tools."
+            />
+          </ul>
+          <div className="mt-8">
+            <Link className="tri-btn-primary" to="/my-team">
+              Go to My team
+            </Link>
+          </div>
+        </section>
+
         <section>
           <h2 className="font-display text-tri-section text-tri-forest">How to use this site</h2>
           <ol className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -77,15 +119,20 @@ export function AboutPage() {
             <StepCard
               step={2}
               title="Find your team"
-              body={`${LEADERBOARD_SEARCH_NOTE} Teams are listed by rank — tap a row to expand it and see how points were earned in each category. ${LEADERBOARD_RANKING_NOTE}`}
+              body="Use My team to sign in with your Skills Boost email, see your team name and description, and open your team's Discord channel."
             />
             <StepCard
               step={3}
+              title="Track your rank"
+              body={`${LEADERBOARD_SEARCH_NOTE} Teams are listed by rank — tap a row to expand it and see how points were earned in each category. ${LEADERBOARD_RANKING_NOTE}`}
+            />
+            <StepCard
+              step={4}
               title="Check the shout-outs"
               body="Weekly awards highlight more than first place — improvement, attendance, deep learning, and comeback stories."
             />
             <StepCard
-              step={4}
+              step={5}
               title="Keep learning on Skills Boost"
               body="Scores come from your real activity. Finish the week's module, take quizzes, and support teammates who need a nudge."
             />
@@ -163,12 +210,16 @@ export function AboutPage() {
             </li>
             <li>
               Teams are fixed for the cohort. If you think you are on the wrong team, contact an admin — they
-              can update assignments in the admin tools.
+              can update assignments in the admin tools, or use{" "}
+              <Link className="font-semibold text-tri-leaf hover:underline" to="/my-team">
+                My team
+              </Link>{" "}
+              to confirm which team you are on.
             </li>
             <li>
               The league is meant to encourage <strong className="text-tri-ink">collaboration</strong>.
-              Celebrate teammates, share resources, and use the board as feedback on how your group is engaging
-              with the programme.
+              Celebrate teammates, share resources on your team Discord, and use the board as feedback on how
+              your group is engaging with the programme.
             </li>
           </ul>
         </section>
@@ -176,11 +227,17 @@ export function AboutPage() {
         <section className="flex flex-col items-start gap-4 rounded-tri border border-tri-orange/30 bg-tri-orange-dim p-8">
           <h2 className="font-display text-2xl text-tri-forest">Ready to see where your team stands?</h2>
           <p className="max-w-xl font-body text-tri-lead text-tri-muted">
-            Head to the leaderboard for this week&apos;s rankings and shout-outs.
+            Check the weekly leaderboard, or sign in to My team for your assignment, team story, and Discord
+            links.
           </p>
-          <Link className="tri-btn-primary" to="/leaderboard">
-            Go to leaderboard
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link className="tri-btn-primary" to="/leaderboard">
+              Go to leaderboard
+            </Link>
+            <Link className="tri-btn-outline-panel" to="/my-team">
+              Go to My team
+            </Link>
+          </div>
         </section>
       </main>
     </div>
@@ -194,6 +251,15 @@ function StepCard({ step, title, body }: { step: number; title: string; body: st
         {step}
       </span>
       <h3 className="mt-3 font-display text-lg font-semibold text-tri-forest">{title}</h3>
+      <p className="mt-2 font-body text-sm leading-relaxed text-tri-muted">{body}</p>
+    </li>
+  );
+}
+
+function TeamInfoCard({ title, body }: { title: string; body: string }) {
+  return (
+    <li className="rounded-tri border border-tri-border bg-tri-mist/50 p-5">
+      <h3 className="font-display text-lg font-semibold text-tri-forest">{title}</h3>
       <p className="mt-2 font-body text-sm leading-relaxed text-tri-muted">{body}</p>
     </li>
   );

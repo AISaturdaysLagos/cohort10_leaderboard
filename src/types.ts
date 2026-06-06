@@ -151,6 +151,8 @@ export type TeamDescription = {
   category: string;
   overview: string;
   interestingDetails: string;
+  imageUrl: string;
+  imageSource: string;
 };
 
 /** One row from team_discord_channels.csv */
@@ -158,6 +160,7 @@ export type TeamDiscordLink = {
   teamId: string;
   teamName: string;
   channelUrl: string;
+  inviteUrl: string;
   channelName: string;
 };
 

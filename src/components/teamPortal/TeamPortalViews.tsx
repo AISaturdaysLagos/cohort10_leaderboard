@@ -2,6 +2,7 @@ import type { TeamDescription, TeamDiscordLink, TeamPortalContext, TeamPortalMem
 import { displayMemberName } from "../../lib/teamPortal";
 import { isTeamLeaderRole } from "../../lib/teamLeaders";
 import { DISCORD_SERVER_INVITE } from "../../lib/triAiBrand";
+import { TeamHeroImage } from "./TeamHeroImage";
 
 type TeamDescriptionPanelProps = {
   teamName: string;
@@ -12,9 +13,10 @@ type TeamDescriptionPanelProps = {
 export function TeamDescriptionPanel({ teamName, description, discord }: TeamDescriptionPanelProps) {
   return (
     <div className="space-y-4">
+      <TeamHeroImage teamName={teamName} description={description} />
       <section className="rounded border border-tri-border bg-tri-surface p-6 shadow-card">
-        <p className="text-xs font-semibold uppercase tracking-wide text-tri-faint">Your team</p>
-        <h2 className="mt-2 font-display text-3xl font-extrabold text-tri-forest">{teamName}</h2>
+        <p className="text-xs font-semibold uppercase tracking-wide text-tri-faint">About your team</p>
+        <h2 className="mt-2 font-display text-2xl font-extrabold text-tri-forest sm:text-3xl">{teamName}</h2>
         {description ? (
           <div className="mt-6 space-y-4 font-body text-tri-lead text-tri-muted">
             <div className="flex flex-wrap gap-2">
@@ -55,7 +57,11 @@ export function TeamDiscordCard({ teamName, discord }: TeamDiscordCardProps) {
       : `#${discord.channelName}`
     : `#${teamName.toLowerCase().replace(/\s+/g, "-")}`;
 
-  if (!discord?.channelUrl && !DISCORD_SERVER_INVITE) {
+  const inviteUrl = discord?.inviteUrl || DISCORD_SERVER_INVITE;
+  const hasChannel = Boolean(discord?.channelUrl);
+  const hasInvite = Boolean(inviteUrl);
+
+  if (!hasChannel && !hasInvite) {
     return (
       <section className="rounded border border-dashed border-tri-border bg-tri-mist/40 px-4 py-4 font-body text-sm text-tri-muted">
         Your team Discord channel link will appear here once an admin adds it.
@@ -73,9 +79,9 @@ export function TeamDiscordCard({ teamName, discord }: TeamDiscordCardProps) {
             Connect with your teammates in the cohort Discord server.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            {discord?.channelUrl ? (
+            {hasChannel ? (
               <a
-                href={discord.channelUrl}
+                href={discord!.channelUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-tri bg-[#5865F2] px-4 py-2.5 font-body text-sm font-semibold text-white no-underline transition-opacity hover:opacity-90"
@@ -83,14 +89,14 @@ export function TeamDiscordCard({ teamName, discord }: TeamDiscordCardProps) {
                 Open {channelLabel}
               </a>
             ) : null}
-            {DISCORD_SERVER_INVITE ? (
+            {hasInvite ? (
               <a
-                href={DISCORD_SERVER_INVITE}
+                href={inviteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="tri-btn-muted inline-flex no-underline"
               >
-                {discord?.channelUrl ? "Join server" : "Join cohort Discord server"}
+                {hasChannel ? "Team invite link" : "Join team on Discord"}
               </a>
             ) : null}
           </div>

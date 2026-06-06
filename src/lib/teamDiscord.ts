@@ -25,6 +25,7 @@ function pickFirst(row: RawRow, keys: string[]): string {
 const TEAM_ID_KEYS = ["Team_ID", "Team ID", "TeamId"];
 const TEAM_NAME_KEYS = ["Team_Name", "Team name", "Team"];
 const URL_KEYS = ["Discord_Channel_URL", "Discord URL", "Discord_URL", "Channel_URL", "Channel URL"];
+const INVITE_KEYS = ["Discord_Invite_URL", "Discord Invite URL", "Invite_URL", "Invite URL", "Discord_Invite"];
 const CHANNEL_NAME_KEYS = ["Channel_Name", "Channel name", "Discord_Channel", "Channel"];
 
 export function isValidDiscordUrl(url: string): boolean {
@@ -56,12 +57,16 @@ export function parseTeamDiscordCsv(text: string): TeamDiscordLink[] {
     const teamId = pickFirst(r, TEAM_ID_KEYS).trim();
     const teamName = pickFirst(r, TEAM_NAME_KEYS).trim();
     const channelUrl = pickFirst(r, URL_KEYS).trim();
+    const inviteUrl = pickFirst(r, INVITE_KEYS).trim();
     if (!teamId && !teamName) continue;
-    if (!isValidDiscordUrl(channelUrl)) continue;
+    const validChannel = isValidDiscordUrl(channelUrl);
+    const validInvite = isValidDiscordUrl(inviteUrl);
+    if (!validChannel && !validInvite) continue;
     rows.push({
       teamId: teamId || teamName,
       teamName: teamName || teamId,
-      channelUrl,
+      channelUrl: validChannel ? channelUrl : "",
+      inviteUrl: validInvite ? inviteUrl : "",
       channelName: pickFirst(r, CHANNEL_NAME_KEYS).trim(),
     });
   }
@@ -81,6 +86,7 @@ export function teamDiscordToCsv(rows: TeamDiscordLink[]): string {
       Team_Name: r.teamName,
       Channel_Name: r.channelName,
       Discord_Channel_URL: r.channelUrl,
+      Discord_Invite_URL: r.inviteUrl,
     })),
     { header: true, newline: "\n" },
   );

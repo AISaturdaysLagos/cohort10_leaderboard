@@ -50,7 +50,6 @@ export function subscribeTeamDescriptionsFromFirestore(
     },
     (err) => {
       onError?.(err);
-      onData(null);
     },
   );
 }

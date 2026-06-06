@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type { TeamDescription } from "../types";
+import { normalizeWikiImageUrl } from "./wikiImageUrl";
 
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
@@ -35,6 +36,8 @@ const TEAM_SIZE_KEYS = ["Team_Size", "Team size"];
 const CATEGORY_KEYS = ["Category"];
 const OVERVIEW_KEYS = ["Overview"];
 const DETAILS_KEYS = ["Interesting_Details", "Interesting details"];
+const IMAGE_URL_KEYS = ["Image_URL", "Image URL", "ImageUrl"];
+const IMAGE_SOURCE_KEYS = ["Image_Source", "Image Source", "ImageSource"];
 
 export function parseTeamDescriptionsCsv(text: string): TeamDescription[] {
   const clean = stripBom(text);
@@ -43,9 +46,13 @@ export function parseTeamDescriptionsCsv(text: string): TeamDescription[] {
     skipEmptyLines: true,
     transformHeader: (h) => h.trim(),
   });
-  if (parsed.errors.length) {
-    const msg = parsed.errors.map((e) => e.message).join("; ");
+  const fatalErrors = parsed.errors.filter((e) => e.code !== "TooManyFields");
+  if (fatalErrors.length) {
+    const msg = fatalErrors.map((e) => e.message).join("; ");
     throw new Error(`Team descriptions CSV parse error: ${msg}`);
+  }
+  if (parsed.errors.length) {
+    console.warn("Team descriptions CSV field warnings:", parsed.errors.map((e) => e.message).join("; "));
   }
 
   const rows: TeamDescription[] = [];
@@ -60,6 +67,8 @@ export function parseTeamDescriptionsCsv(text: string): TeamDescription[] {
       category: pickFirst(r, CATEGORY_KEYS).trim(),
       overview: pickFirst(r, OVERVIEW_KEYS).trim(),
       interestingDetails: pickFirst(r, DETAILS_KEYS).trim(),
+      imageUrl: normalizeWikiImageUrl(pickFirst(r, IMAGE_URL_KEYS).trim()),
+      imageSource: pickFirst(r, IMAGE_SOURCE_KEYS).trim(),
     });
   }
   return rows;
@@ -80,6 +89,8 @@ export function teamDescriptionsToCsv(rows: TeamDescription[]): string {
       Category: r.category,
       Overview: r.overview,
       Interesting_Details: r.interestingDetails,
+      Image_URL: r.imageUrl,
+      Image_Source: r.imageSource,
     })),
     { header: true, newline: "\n" },
   );

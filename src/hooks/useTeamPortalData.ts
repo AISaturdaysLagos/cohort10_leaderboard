@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { waitForFirebaseUser } from "../lib/firebase";
 import { parseTeamAssignmentsCsv } from "../lib/teamAssignments";
 import { parseTeamDescriptionsCsv, teamDescriptionsById } from "../lib/teamDescriptions";
 import { subscribeTeamDescriptions } from "../lib/teamDescriptionsMap";
@@ -18,6 +19,15 @@ export type TeamPortalData = {
   discordLinks: Map<string, TeamDiscordLink>;
 };
 
+function once(fn: () => void): () => void {
+  let called = false;
+  return () => {
+    if (called) return;
+    called = true;
+    fn();
+  };
+}
+
 export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [teamMapCsv, setTeamMapCsv] = useState("");
   const [leadersCsv, setLeadersCsv] = useState("");
@@ -36,59 +46,75 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
       return;
     }
 
-    setLoading(true);
-    let pending = 4;
-    const done = () => {
-      pending -= 1;
-      if (pending <= 0) setLoading(false);
-    };
+    let cancelled = false;
+    const cleanups: (() => void)[] = [];
 
-    const unsubMap = subscribeTeamMap(
-      (data) => {
-        setTeamMapCsv(data?.csv ?? "");
-        done();
-      },
-      (err) => {
-        setError(err.message);
-        done();
-      },
-    );
-    const unsubLeaders = subscribeTeamLeaders(
-      (data) => {
-        setLeadersCsv(data?.csv ?? "");
-        done();
-      },
-      (err) => {
-        setError(err.message);
-        done();
-      },
-    );
-    const unsubDescriptions = subscribeTeamDescriptions(
-      (data) => {
-        setDescriptionsCsv(data?.csv ?? "");
-        done();
-      },
-      (err) => {
-        setError(err.message);
-        done();
-      },
-    );
-    const unsubDiscord = subscribeTeamDiscord(
-      (data) => {
-        setDiscordCsv(data?.csv ?? "");
-        done();
-      },
-      (err) => {
-        setError(err.message);
-        done();
-      },
-    );
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      await waitForFirebaseUser();
+      if (cancelled) return;
+
+      let pending = 4;
+      const done = once(() => setLoading(false));
+      const streamDone = () => {
+        pending -= 1;
+        if (pending <= 0) done();
+      };
+
+      cleanups.push(
+        subscribeTeamMap(
+          (data) => {
+            setTeamMapCsv(data?.csv ?? "");
+            streamDone();
+          },
+          (err) => {
+            setError((prev) => prev ?? err.message);
+            streamDone();
+          },
+        ),
+      );
+      cleanups.push(
+        subscribeTeamLeaders(
+          (data) => {
+            setLeadersCsv(data?.csv ?? "");
+            streamDone();
+          },
+          (err) => {
+            setError((prev) => prev ?? err.message);
+            streamDone();
+          },
+        ),
+      );
+      cleanups.push(
+        subscribeTeamDescriptions(
+          (data) => {
+            setDescriptionsCsv(data?.csv ?? "");
+            streamDone();
+          },
+          (err) => {
+            setError((prev) => prev ?? err.message);
+            streamDone();
+          },
+        ),
+      );
+      cleanups.push(
+        subscribeTeamDiscord(
+          (data) => {
+            setDiscordCsv(data?.csv ?? "");
+            streamDone();
+          },
+          (err) => {
+            setError((prev) => prev ?? err.message);
+            streamDone();
+          },
+        ),
+      );
+    })();
 
     return () => {
-      unsubMap();
-      unsubLeaders();
-      unsubDescriptions();
-      unsubDiscord();
+      cancelled = true;
+      for (const cleanup of cleanups) cleanup();
     };
   }, [enabled]);
 
@@ -114,7 +140,8 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
     if (!descriptionsCsv.trim()) return new Map<string, TeamDescription>();
     try {
       return teamDescriptionsById(parseTeamDescriptionsCsv(descriptionsCsv));
-    } catch {
+    } catch (err) {
+      console.error("Team descriptions CSV parse failed:", err);
       return new Map<string, TeamDescription>();
     }
   }, [descriptionsCsv]);

@@ -285,7 +285,7 @@ export function TeamManagementTab({
       const text = await f.text();
       const rows = parseTeamDiscordCsv(text);
       if (rows.length === 0) {
-        throw new Error("No valid Discord channel URLs found. Use discord.com/channels/… or discord.gg/… links.");
+        throw new Error("No valid Discord links found. Add Discord_Channel_URL and/or Discord_Invite_URL columns.");
       }
       const csv = teamDiscordToCsv(rows);
       await saveTeamDiscord(csv);

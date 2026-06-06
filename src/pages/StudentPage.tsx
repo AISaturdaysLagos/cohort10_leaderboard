@@ -69,6 +69,9 @@ export function StudentPage() {
             <Link className="tri-btn-outline-panel" to="/">
               About the league
             </Link>
+            <Link className="tri-btn-outline-panel" to="/my-team">
+              My team
+            </Link>
             <Link className="tri-btn-outline-panel" to="/admin">
               Admin
             </Link>

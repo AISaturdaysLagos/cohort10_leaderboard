@@ -239,7 +239,16 @@ Document path: `config/teamDescriptions`
 }
 ```
 
-CSV columns: **Team_ID**, **Team_Name**, **Team_Size**, **Category**, **Overview**, **Interesting_Details**.
+CSV columns: **Team_ID**, **Team_Name**, **Team_Size**, **Category**, **Overview**, **Interesting_Details**, **Image_URL**, **Image_Source**.
+
+Fetch landmark photos (Wikipedia → Openverse, with category gradient fallback in the app):
+
+```bash
+npm run firebase:fetch-team-images
+npm run firebase:fetch-team-images -- --only-missing
+npm run firebase:fetch-team-images -- --fix-bad
+npm run firebase:seed-team-descriptions
+```
 
 ```bash
 npm run firebase:seed-team-descriptions
@@ -259,6 +268,10 @@ Enable **Email link** sign-in in Firebase Console → Authentication → Sign-in
 
 Add your site URL (and `localhost` for dev) under Authentication → Settings → **Authorized domains**.
 
+**Browser caching:** `/my-team` loads descriptions live from Firestore (`onSnapshot`). Each successful sync also writes to `localStorage` key `tri-saturdays-league-team-descriptions-v1` as an offline fallback. Hero **photos** are separate URLs (Wikimedia/Flickr) and may be cached by the browser until you hard-refresh. You must be **signed in** to read config docs (Firestore rules). Seeding via `npm run firebase:seed-team-descriptions` updates Firestore only — reload `/my-team` (signed in) once to refresh the local cache.
+
+**Local production preview:** After `npm run build:pages`, use `npm run preview:pages` and open **`http://localhost:4173/cohort10_leaderboard/my-team`** (not the site root — assets use the GitHub Pages base path). For day-to-day work, `npm run dev` at `http://localhost:5173/my-team` is simpler.
+
 ### Team Discord channels
 
 Document path: `config/teamDiscord`
@@ -270,7 +283,8 @@ CSV file: `team_discord_channels.csv` (197 rows — one per team)
 | **Team_ID** | Matches team assignments |
 | **Team_Name** | e.g. Serengeti |
 | **Channel_Name** | Optional display name (e.g. `serengeti`) |
-| **Discord_Channel_URL** | `https://discord.com/channels/SERVER_ID/CHANNEL_ID` or a channel invite |
+| **Discord_Channel_URL** | `https://discord.com/channels/SERVER_ID/CHANNEL_ID` |
+| **Discord_Invite_URL** | Per-team invite (`https://discord.gg/…`) — shown as **Team invite link** on My team |
 
 Right-click your team channel in Discord → **Copy link**, then paste into the CSV. Re-upload from Admin → Team management or:
 

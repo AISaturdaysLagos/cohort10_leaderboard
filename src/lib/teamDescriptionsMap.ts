@@ -13,31 +13,43 @@ export const TEAM_DESCRIPTIONS_CHANGE_EVENT = "tri-saturdays-league-team-descrip
 
 export type { StoredTeamDescriptions };
 
-function readLocalCsv(): string {
+function readLocalPayload(): StoredTeamDescriptions | null {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw || raw.length > MAX_STORAGE_BYTES) return "";
+    if (!raw || raw.length > MAX_STORAGE_BYTES) return null;
     const p = JSON.parse(raw) as StoredTeamDescriptions;
-    if (p?.version !== 1 || typeof p.csv !== "string") return "";
-    return p.csv;
+    if (p?.version !== 1 || typeof p.csv !== "string") return null;
+    return p;
   } catch {
-    return "";
+    return null;
   }
+}
+
+function readLocalCsv(): string {
+  return readLocalPayload()?.csv ?? "";
 }
 
 function mentorEmail(): string | undefined {
   return currentAdminUser()?.email ?? undefined;
 }
 
-function writeLocalCsv(csv: string) {
-  const payload: StoredTeamDescriptions = {
-    version: 1,
-    csv,
-    updatedAt: new Date().toISOString(),
-    updatedBy: mentorEmail(),
-  };
+function writeLocalPayload(payload: StoredTeamDescriptions) {
   localStorage.setItem(KEY, JSON.stringify(payload));
   window.dispatchEvent(new Event(TEAM_DESCRIPTIONS_CHANGE_EVENT));
+}
+
+function writeLocalCsv(csv: string, meta?: Pick<StoredTeamDescriptions, "updatedAt" | "updatedBy">) {
+  writeLocalPayload({
+    version: 1,
+    csv,
+    updatedAt: meta?.updatedAt ?? new Date().toISOString(),
+    updatedBy: meta?.updatedBy ?? mentorEmail(),
+  });
+}
+
+/** Last team descriptions cached in this browser (may be stale until Firestore syncs). */
+export function loadTeamDescriptionsLocal(): StoredTeamDescriptions | null {
+  return readLocalPayload();
 }
 
 export function usesFirebaseTeamDescriptions(): boolean {
@@ -48,7 +60,7 @@ export async function saveTeamDescriptions(csv: string): Promise<StoredTeamDescr
   const updatedBy = mentorEmail();
   if (isFirebaseConfigured()) {
     const payload = await saveTeamDescriptionsToFirestore(csv, updatedBy);
-    writeLocalCsv(csv);
+    writeLocalPayload(payload);
     return payload;
   }
   writeLocalCsv(csv);
@@ -65,7 +77,24 @@ export function subscribeTeamDescriptions(
   onError?: (error: Error) => void,
 ): () => void {
   if (isFirebaseConfigured()) {
-    return subscribeTeamDescriptionsFromFirestore(onData, onError);
+    const cached = readLocalPayload();
+    if (cached) onData(cached);
+
+    return subscribeTeamDescriptionsFromFirestore(
+      (data) => {
+        if (data) {
+          writeLocalPayload(data);
+          onData(data);
+          return;
+        }
+        const cached = readLocalPayload();
+        if (!cached) onData(null);
+      },
+      (err) => {
+        onError?.(err);
+        onData(readLocalPayload());
+      },
+    );
   }
 
   const refresh = () => {

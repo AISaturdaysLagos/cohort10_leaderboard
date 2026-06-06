@@ -46,15 +46,19 @@ export function getFirebaseDb(): Firestore {
   return db;
 }
 
-/** Wait until Firebase Auth has resolved (needed before Firestore config reads). */
-export function waitForFirebaseUser(): Promise<User | null> {
-  if (!isFirebaseConfigured()) return Promise.resolve(null);
+/** Wait until Firebase Auth has resolved and an ID token is ready (needed before Firestore config reads). */
+export async function waitForFirebaseUser(): Promise<User | null> {
+  if (!isFirebaseConfigured()) return null;
   const auth = getFirebaseAuth();
-  if (auth.currentUser) return Promise.resolve(auth.currentUser);
-  return new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      unsub();
-      resolve(user);
+  let user = auth.currentUser;
+  if (!user) {
+    user = await new Promise<User | null>((resolve) => {
+      const unsub = onAuthStateChanged(auth, (nextUser) => {
+        unsub();
+        resolve(nextUser);
+      });
     });
-  });
+  }
+  if (user) await user.getIdToken();
+  return user;
 }

@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { TeamAssignmentRow, TeamGroup } from "../types";
+import type { TeamAssignmentRow, TeamGroup, TeamMemberProfile } from "../types";
 
 /** Lowercase + Gmail/googlemail dot and plus-alias normalization for roster matching. */
 export function canonicalizeEmailForMatch(email: string): string {
@@ -119,6 +119,23 @@ export function teamAssignmentsToCsv(rows: TeamAssignmentRow[]): string {
 
 export function teamAssignmentsToLookup(rows: TeamAssignmentRow[]): Map<string, string> {
   return new Map(rows.map((r) => [r.email, r.teamName]));
+}
+
+/** Build assignment rows from leader profiles when config/teamMap is missing or empty. */
+export function assignmentsFromLeaderProfiles(profiles: TeamMemberProfile[]): TeamAssignmentRow[] {
+  const rows: TeamAssignmentRow[] = [];
+  for (const profile of profiles) {
+    if (!profile.email) continue;
+    const teamName = profile.teamName.trim();
+    const teamId = profile.teamId.trim() || teamName;
+    if (!teamId) continue;
+    rows.push({
+      email: canonicalizeEmailForMatch(profile.email),
+      teamId,
+      teamName: teamName || teamId,
+    });
+  }
+  return dedupeByEmail(rows);
 }
 
 function compareTeamIds(a: string, b: string): number {

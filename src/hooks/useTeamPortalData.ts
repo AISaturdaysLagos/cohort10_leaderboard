@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isFirebaseConfigured, waitForFirebaseUser } from "../lib/firebase";
 import { fetchTeamDescriptionsFromServer } from "../lib/firebaseTeamDescriptions";
 import { fetchTeamDiscordFromServer } from "../lib/firebaseTeamDiscord";
 import { fetchTeamLeadersFromServer } from "../lib/firebaseTeamLeaders";
 import { fetchTeamMapFromServer } from "../lib/firebaseTeamMap";
-import { parseTeamAssignmentsCsv } from "../lib/teamAssignments";
+import {
+  assignmentsFromLeaderProfiles,
+  parseTeamAssignmentsCsv,
+} from "../lib/teamAssignments";
 import { parseTeamDescriptionsCsv, teamDescriptionsById } from "../lib/teamDescriptions";
 import { subscribeTeamDescriptions } from "../lib/teamDescriptionsMap";
 import { parseTeamDiscordCsv, teamDiscordById } from "../lib/teamDiscord";
@@ -22,7 +25,40 @@ export type TeamPortalData = {
   profiles: Map<string, TeamMemberProfile>;
   descriptions: Map<string, TeamDescription>;
   discordLinks: Map<string, TeamDiscordLink>;
+  reload: () => void;
 };
+
+function parseAssignments(teamMapCsv: string, leadersCsv: string): TeamAssignmentRow[] {
+  if (teamMapCsv.trim()) {
+    try {
+      const fromMap = parseTeamAssignmentsCsv(teamMapCsv);
+      if (fromMap.length > 0) return fromMap;
+    } catch (err) {
+      console.error("Team assignments CSV parse failed:", err);
+    }
+  }
+
+  if (leadersCsv.trim()) {
+    try {
+      return assignmentsFromLeaderProfiles(parseTeamLeadersCsv(leadersCsv));
+    } catch (err) {
+      console.error("Team leaders CSV parse failed:", err);
+    }
+  }
+
+  return [];
+}
+
+function firstRejectedReason(results: PromiseSettledResult<unknown>[]): string | null {
+  for (const result of results) {
+    if (result.status === "rejected") {
+      const reason = result.reason;
+      if (reason instanceof Error) return reason.message;
+      return String(reason);
+    }
+  }
+  return null;
+}
 
 export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [teamMapCsv, setTeamMapCsv] = useState("");
@@ -32,6 +68,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [loading, setLoading] = useState(enabled);
   const [rosterLoaded, setRosterLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const reload = useCallback(() => {
+    setReloadToken((token) => token + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -55,26 +96,37 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
       if (cancelled) return;
 
       if (isFirebaseConfigured()) {
-        try {
-          const [teamMap, leaders, descriptions, discord] = await Promise.all([
-            fetchTeamMapFromServer(),
-            fetchTeamLeadersFromServer(),
-            fetchTeamDescriptionsFromServer(),
-            fetchTeamDiscordFromServer(),
-          ]);
-          if (cancelled) return;
-          setTeamMapCsv(teamMap?.csv ?? "");
-          setLeadersCsv(leaders?.csv ?? "");
-          setDescriptionsCsv(descriptions?.csv ?? "");
-          setDiscordCsv(discord?.csv ?? "");
-          setRosterLoaded(true);
-        } catch (err) {
-          if (cancelled) return;
-          setError(err instanceof Error ? err.message : "Could not load team data.");
-          setRosterLoaded(true);
-        } finally {
-          if (!cancelled) setLoading(false);
+        const results = await Promise.allSettled([
+          fetchTeamMapFromServer(),
+          fetchTeamLeadersFromServer(),
+          fetchTeamDescriptionsFromServer(),
+          fetchTeamDiscordFromServer(),
+        ]);
+        if (cancelled) return;
+
+        const [teamMapResult, leadersResult, descriptionsResult, discordResult] = results;
+        const teamMap = teamMapResult.status === "fulfilled" ? teamMapResult.value : null;
+        const leaders = leadersResult.status === "fulfilled" ? leadersResult.value : null;
+        const descriptions =
+          descriptionsResult.status === "fulfilled" ? descriptionsResult.value : null;
+        const discord = discordResult.status === "fulfilled" ? discordResult.value : null;
+
+        setTeamMapCsv(teamMap?.csv ?? "");
+        setLeadersCsv(leaders?.csv ?? "");
+        setDescriptionsCsv(descriptions?.csv ?? "");
+        setDiscordCsv(discord?.csv ?? "");
+        setRosterLoaded(true);
+
+        const mapCsv = teamMap?.csv?.trim() ?? "";
+        const leadersCsvData = leaders?.csv?.trim() ?? "";
+        if (!mapCsv && !leadersCsvData) {
+          setError(firstRejectedReason(results) ?? "Team roster has not been published yet.");
+        } else {
+          const fetchError = firstRejectedReason(results);
+          if (fetchError) setError(fetchError);
         }
+
+        setLoading(false);
         return;
       }
 
@@ -141,17 +193,12 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
       cancelled = true;
       for (const cleanup of cleanups) cleanup();
     };
-  }, [enabled]);
+  }, [enabled, reloadToken]);
 
-  const assignments = useMemo(() => {
-    if (!teamMapCsv.trim()) return [];
-    try {
-      return parseTeamAssignmentsCsv(teamMapCsv);
-    } catch (err) {
-      console.error("Team assignments CSV parse failed:", err);
-      return [];
-    }
-  }, [teamMapCsv]);
+  const assignments = useMemo(
+    () => parseAssignments(teamMapCsv, leadersCsv),
+    [teamMapCsv, leadersCsv],
+  );
 
   const profiles = useMemo(() => {
     if (!leadersCsv.trim()) return new Map<string, TeamMemberProfile>();
@@ -181,5 +228,5 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
     }
   }, [discordCsv]);
 
-  return { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks };
+  return { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks, reload };
 }

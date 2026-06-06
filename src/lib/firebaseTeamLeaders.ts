@@ -1,5 +1,6 @@
 import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamLeaders } from "../types";
+import { fetchFirestoreWithAuthRetry } from "./firestoreFetch";
 import { getFirebaseDb } from "./firebase";
 
 const COLLECTION = "config";
@@ -12,11 +13,11 @@ function teamLeadersRef() {
 function normalizeTeamLeaders(raw: unknown): StoredTeamLeaders | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  if (o.version !== 1 || typeof o.csv !== "string" || typeof o.updatedAt !== "string") return null;
+  if (o.version !== 1 || typeof o.csv !== "string") return null;
   return {
     version: 1,
     csv: o.csv,
-    updatedAt: o.updatedAt,
+    updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : "",
     updatedBy: typeof o.updatedBy === "string" ? o.updatedBy : undefined,
   };
 }
@@ -36,9 +37,11 @@ export async function saveTeamLeadersToFirestore(
 }
 
 export async function fetchTeamLeadersFromServer(): Promise<StoredTeamLeaders | null> {
-  const snap = await getDocFromServer(teamLeadersRef());
-  if (!snap.exists()) return null;
-  return normalizeTeamLeaders(snap.data());
+  return fetchFirestoreWithAuthRetry(async () => {
+    const snap = await getDocFromServer(teamLeadersRef());
+    if (!snap.exists()) return null;
+    return normalizeTeamLeaders(snap.data());
+  });
 }
 
 export function subscribeTeamLeadersFromFirestore(

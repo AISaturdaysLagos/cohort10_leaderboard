@@ -15,7 +15,8 @@ export function MyTeamPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const dataEnabled = Boolean(email);
-  const { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks } = useTeamPortalData(dataEnabled);
+  const { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks, reload } =
+    useTeamPortalData(dataEnabled);
 
   const refreshAuth = useCallback(() => {
     if (isFirebaseConfigured()) {
@@ -108,6 +109,9 @@ export function MyTeamPage() {
               We could not load the cohort team list. Try again in a moment, or contact your mentor if this keeps
               happening.
             </p>
+            <button type="button" className="tri-btn-muted mt-6" onClick={reload}>
+              Try again
+            </button>
           </div>
         ) : !context ? (
           <div className="rounded border border-tri-border bg-tri-sand p-8 text-center shadow-card">

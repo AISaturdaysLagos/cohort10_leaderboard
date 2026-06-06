@@ -13,10 +13,11 @@ When Firebase is configured, **Publish** writes to Firestore and every student o
 
 1. **Build → Authentication → Get started**
 2. Enable **Google** (Sign-in method → Google → Enable)
-3. Add your **Authorised domains** if needed (`localhost` is allowed by default; add your GitHub Pages host e.g. `aisaturdayslagos.github.io`)
-4. In **Settings → Authorised domains**, ensure the Pages URL is listed for production sign-in
+3. Enable **Email/Password** (Sign-in method → Email/Password → Enable). Leave **Email link (passwordless)** off unless you want magic links — students use a normal password instead.
+4. Add your **Authorised domains** if needed (`localhost` is allowed by default; add your GitHub Pages host e.g. `aisaturdayslagos.github.io`)
+5. In **Settings → Authorised domains**, ensure the Pages URL is listed for production sign-in
 
-Both **admin** (`/admin`) and **students** (`/my-team`) sign in with Google. Admin access is restricted by email/domain allowlist (below); students can use any Google account — the app matches their signed-in email to the team roster.
+**Admin** (`/admin`) signs in with Google only. **Students** (`/my-team`) can use Google or **email + password** (create account on first visit). Admin access is restricted by email/domain allowlist (below); students are matched to teams by whatever email they sign in with.
 
 Set who can use `/admin` in `.env.local`:
 
@@ -36,7 +37,7 @@ VITE_FIREBASE_ADMIN_EMAILS=mentor@gmail.com
 
 You can combine both. Without any allowlist, any Google account that signs in could publish (not recommended).
 
-Email/Password is still supported in code if you enable it in Firebase, but the admin UI uses **Sign in with Google** when Firebase is configured.
+Email/Password is required for students without Gmail; the admin UI still uses **Sign in with Google** only.
 
 ### Firestore
 
@@ -260,13 +261,13 @@ npm run firebase:seed-config
 
 ### Student team portal (`/my-team`)
 
-Learners sign in with **Google** (same Firebase Authentication provider as admin). After sign-in, the app reads `config/teamMap`, `config/teamLeaders`, and `config/teamDescriptions` and shows:
+Learners sign in with **Google** or **email + password**. After sign-in, the app reads `config/teamMap`, `config/teamLeaders`, and `config/teamDescriptions` and shows:
 
 - **All learners:** team name + description
 - **Team leaders** (Role = Team Leader 1 / 2): full roster with names and roles
 - **Admins** (allowlisted mentor accounts): team picker + preview as student or team leader
 
-Google sign-in must be enabled in Firebase Console (see [Authentication](#authentication) above).
+Enable **Google** and **Email/Password** in Firebase Console (see [Authentication](#authentication) above). Students without Gmail can create an account with the same email listed in the cohort roster.
 
 **Browser caching:** `/my-team` loads descriptions live from Firestore (`onSnapshot`). Each successful sync also writes to `localStorage` key `tri-saturdays-league-team-descriptions-v1` as an offline fallback. Hero **photos** are separate URLs (Wikimedia/Flickr) and may be cached by the browser until you hard-refresh. You must be **signed in** to read config docs (Firestore rules). Seeding via `npm run firebase:seed-team-descriptions` updates Firestore only — reload `/my-team` (signed in) once to refresh the local cache.
 

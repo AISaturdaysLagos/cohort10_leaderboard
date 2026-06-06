@@ -1,6 +1,8 @@
 import {
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   type User,
@@ -40,6 +42,33 @@ export function subscribeLearnerAuth(onChange: (email: string | null) => void): 
   return () => window.removeEventListener("storage", onStorage);
 }
 
+function normalizeLearnerEmail(email: string): string | null {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@") || !normalized.includes(".")) {
+    return null;
+  }
+  return normalized;
+}
+
+function learnerEmailPasswordError(error: unknown, signUp: boolean): string {
+  switch (firebaseAuthCode(error)) {
+    case "auth/operation-not-allowed":
+      return "Email and password sign-in is not enabled. Ask your mentor to enable Email/Password in Firebase Console.";
+    case "auth/invalid-email":
+      return "Enter a valid email address.";
+    case "auth/weak-password":
+      return "Password must be at least 6 characters.";
+    case "auth/email-already-in-use":
+      return "An account already exists for this email. Sign in instead.";
+    case "auth/user-not-found":
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+      return signUp ? "Could not create account. Try again." : "Incorrect email or password.";
+    default:
+      return signUp ? "Could not create account. Try again." : "Sign-in failed. Try again.";
+  }
+}
+
 export async function tryLearnerGoogleLogin(): Promise<string | null> {
   if (!isFirebaseConfigured()) {
     return "Sign-in is not configured.";
@@ -56,6 +85,38 @@ export async function tryLearnerGoogleLogin(): Promise<string | null> {
       return "Google sign-in is not enabled. Ask your mentor to enable it in Firebase Console (Authentication → Sign-in method → Google).";
     }
     return "Google sign-in failed. Try again.";
+  }
+}
+
+export async function tryLearnerEmailPasswordSignIn(email: string, password: string): Promise<string | null> {
+  if (!isFirebaseConfigured()) {
+    return "Sign-in is not configured.";
+  }
+  const normalized = normalizeLearnerEmail(email);
+  if (!normalized) return "Enter a valid email address.";
+  if (!password) return "Enter your password.";
+
+  try {
+    await signInWithEmailAndPassword(getFirebaseAuth(), normalized, password);
+    return null;
+  } catch (error: unknown) {
+    return learnerEmailPasswordError(error, false);
+  }
+}
+
+export async function tryLearnerEmailPasswordSignUp(email: string, password: string): Promise<string | null> {
+  if (!isFirebaseConfigured()) {
+    return "Sign-in is not configured.";
+  }
+  const normalized = normalizeLearnerEmail(email);
+  if (!normalized) return "Enter a valid email address.";
+  if (password.length < 6) return "Password must be at least 6 characters.";
+
+  try {
+    await createUserWithEmailAndPassword(getFirebaseAuth(), normalized, password);
+    return null;
+  } catch (error: unknown) {
+    return learnerEmailPasswordError(error, true);
   }
 }
 

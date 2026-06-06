@@ -24,31 +24,53 @@ export function devLearnerEmail(): string | null {
   return sessionStorage.getItem(DEV_SESSION_KEY);
 }
 
-function firebaseUserEmail(user: User): string | null {
+function firebaseUserDisplayEmail(user: User): string | null {
   const direct = user.email?.trim();
-  if (direct) return canonicalizeEmailForMatch(direct);
+  if (direct) return direct.toLowerCase();
   for (const provider of user.providerData) {
     const providerEmail = provider.email?.trim();
-    if (providerEmail) return canonicalizeEmailForMatch(providerEmail);
+    if (providerEmail) return providerEmail.toLowerCase();
   }
   return null;
 }
 
-export function currentLearnerEmail(user: User | null): string | null {
-  if (user) return firebaseUserEmail(user);
-  const dev = devLearnerEmail();
-  return dev ? canonicalizeEmailForMatch(dev) : null;
+/** Email exactly as the student signed in (for display). Gmail dots and + aliases preserved. */
+export function currentLearnerDisplayEmail(user: User | null): string | null {
+  if (user) return firebaseUserDisplayEmail(user);
+  return devLearnerEmail();
 }
 
-export function subscribeLearnerAuth(onChange: (email: string | null) => void): () => void {
+/** Canonical email for roster lookup (Gmail dot/plus normalization). */
+export function currentLearnerMatchEmail(user: User | null): string | null {
+  const display = currentLearnerDisplayEmail(user);
+  return display ? canonicalizeEmailForMatch(display) : null;
+}
+
+/** @deprecated Use currentLearnerDisplayEmail or currentLearnerMatchEmail */
+export function currentLearnerEmail(user: User | null): string | null {
+  return currentLearnerMatchEmail(user);
+}
+
+export function subscribeLearnerAuth(
+  onChange: (state: { displayEmail: string; matchEmail: string } | null) => void,
+): () => void {
   if (isFirebaseConfigured()) {
     return onAuthStateChanged(getFirebaseAuth(), (user) => {
-      onChange(currentLearnerEmail(user));
+      const displayEmail = currentLearnerDisplayEmail(user);
+      onChange(
+        displayEmail
+          ? { displayEmail, matchEmail: canonicalizeEmailForMatch(displayEmail) }
+          : null,
+      );
     });
   }
-  onChange(devLearnerEmail());
+  const dev = devLearnerEmail();
+  onChange(dev ? { displayEmail: dev, matchEmail: canonicalizeEmailForMatch(dev) } : null);
   const onStorage = (e: StorageEvent) => {
-    if (e.key === DEV_SESSION_KEY || e.key === null) onChange(devLearnerEmail());
+    if (e.key === DEV_SESSION_KEY || e.key === null) {
+      const next = devLearnerEmail();
+      onChange(next ? { displayEmail: next, matchEmail: canonicalizeEmailForMatch(next) } : null);
+    }
   };
   window.addEventListener("storage", onStorage);
   return () => window.removeEventListener("storage", onStorage);
@@ -140,8 +162,8 @@ export async function learnerLogout(): Promise<void> {
 }
 
 export function devSignInWithEmail(email: string): string | null {
-  const normalized = normalizeLearnerEmail(email);
-  if (!normalized) return "Enter a valid email address.";
-  sessionStorage.setItem(DEV_SESSION_KEY, normalized);
+  const display = email.trim().toLowerCase();
+  if (!display.includes("@")) return "Enter a valid email address.";
+  sessionStorage.setItem(DEV_SESSION_KEY, display);
   return null;
 }

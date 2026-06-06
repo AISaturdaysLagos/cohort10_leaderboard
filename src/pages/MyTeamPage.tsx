@@ -6,33 +6,42 @@ import { TeamPortalLeaderView, TeamPortalStudentView } from "../components/teamP
 import { useTeamPortalData } from "../hooks/useTeamPortalData";
 import { isAllowedAdmin } from "../lib/adminAuth";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
-import { learnerLogout, subscribeLearnerAuth, devLearnerEmail, currentLearnerEmail } from "../lib/learnerAuth";
+import {
+  learnerLogout,
+  subscribeLearnerAuth,
+  currentLearnerDisplayEmail,
+  currentLearnerMatchEmail,
+} from "../lib/learnerAuth";
 import { resolveTeamPortal } from "../lib/teamPortal";
 import { LEAGUE_NAME } from "../lib/triAiBrand";
 
 export function MyTeamPage() {
-  const [email, setEmail] = useState<string | null>(null);
+  const [displayEmail, setDisplayEmail] = useState<string | null>(null);
+  const [matchEmail, setMatchEmail] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const dataEnabled = Boolean(email);
+  const dataEnabled = Boolean(matchEmail);
   const { loading, rosterLoaded, error, assignments, profiles, descriptions, discordLinks, reload } =
     useTeamPortalData(dataEnabled);
 
   const refreshAuth = useCallback(() => {
     if (isFirebaseConfigured()) {
       const user = getFirebaseAuth().currentUser;
-      setEmail(currentLearnerEmail(user));
+      setDisplayEmail(currentLearnerDisplayEmail(user));
+      setMatchEmail(currentLearnerMatchEmail(user));
       setIsAdmin(isAllowedAdmin(user));
     } else {
-      setEmail(devLearnerEmail());
+      setDisplayEmail(currentLearnerDisplayEmail(null));
+      setMatchEmail(currentLearnerMatchEmail(null));
       setIsAdmin(false);
     }
     setCheckingAuth(false);
   }, []);
 
   useEffect(() => {
-    return subscribeLearnerAuth((learnerEmail) => {
-      setEmail(learnerEmail);
+    return subscribeLearnerAuth((session) => {
+      setDisplayEmail(session?.displayEmail ?? null);
+      setMatchEmail(session?.matchEmail ?? null);
       if (isFirebaseConfigured()) {
         setIsAdmin(isAllowedAdmin(getFirebaseAuth().currentUser));
       }
@@ -41,9 +50,11 @@ export function MyTeamPage() {
   }, []);
 
   const context = useMemo(() => {
-    if (!email || isAdmin) return null;
-    return resolveTeamPortal(email, assignments, profiles, descriptions, discordLinks);
-  }, [email, isAdmin, assignments, profiles, descriptions, discordLinks]);
+    if (!matchEmail || !displayEmail || isAdmin) return null;
+    const resolved = resolveTeamPortal(matchEmail, assignments, profiles, descriptions, discordLinks);
+    if (!resolved) return null;
+    return { ...resolved, email: displayEmail };
+  }, [matchEmail, displayEmail, isAdmin, assignments, profiles, descriptions, discordLinks]);
 
   const onSignedIn = useCallback(() => {
     refreshAuth();
@@ -51,7 +62,8 @@ export function MyTeamPage() {
 
   const onLogout = () => {
     void learnerLogout().then(() => {
-      setEmail(null);
+      setDisplayEmail(null);
+      setMatchEmail(null);
       setIsAdmin(false);
     });
   };
@@ -64,7 +76,7 @@ export function MyTeamPage() {
     );
   }
 
-  if (!email) {
+  if (!displayEmail) {
     return <TeamPortalLogin onSignedIn={onSignedIn} />;
   }
 
@@ -77,7 +89,7 @@ export function MyTeamPage() {
             <h1 className="font-display text-xl font-bold text-tri-forest">My team</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-body text-xs text-tri-muted">{email}</span>
+            <span className="font-body text-xs text-tri-muted">{displayEmail}</span>
             <button type="button" className="tri-btn-muted py-1.5 text-sm" onClick={onLogout}>
               Sign out
             </button>
@@ -100,7 +112,7 @@ export function MyTeamPage() {
             profiles={profiles}
             descriptions={descriptions}
             discordLinks={discordLinks}
-            signedInEmail={email}
+            signedInEmail={displayEmail}
           />
         ) : assignments.length === 0 ? (
           <div className="rounded border border-tri-border bg-tri-sand p-8 text-center shadow-card">
@@ -117,7 +129,7 @@ export function MyTeamPage() {
           <div className="rounded border border-tri-border bg-tri-sand p-8 text-center shadow-card">
             <h2 className="font-display text-xl text-tri-forest">Email not found</h2>
             <p className="mt-3 font-body text-tri-lead text-tri-muted">
-              <strong className="text-tri-ink">{email}</strong> is not listed in the cohort team assignments. Sign in
+              <strong className="text-tri-ink">{displayEmail}</strong> is not listed in the cohort team assignments. Sign in
               with the same Google account you use for Skills Boost (Gmail ignores dots in addresses, but you must pick
               the same account each time), or contact your mentor.
             </p>

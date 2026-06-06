@@ -13,43 +13,31 @@ export const TEAM_DESCRIPTIONS_CHANGE_EVENT = "tri-saturdays-league-team-descrip
 
 export type { StoredTeamDescriptions };
 
-function readLocalPayload(): StoredTeamDescriptions | null {
+function readLocalCsv(): string {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw || raw.length > MAX_STORAGE_BYTES) return null;
+    if (!raw || raw.length > MAX_STORAGE_BYTES) return "";
     const p = JSON.parse(raw) as StoredTeamDescriptions;
-    if (p?.version !== 1 || typeof p.csv !== "string") return null;
-    return p;
+    if (p?.version !== 1 || typeof p.csv !== "string") return "";
+    return p.csv;
   } catch {
-    return null;
+    return "";
   }
-}
-
-function readLocalCsv(): string {
-  return readLocalPayload()?.csv ?? "";
 }
 
 function mentorEmail(): string | undefined {
   return currentAdminUser()?.email ?? undefined;
 }
 
-function writeLocalPayload(payload: StoredTeamDescriptions) {
-  localStorage.setItem(KEY, JSON.stringify(payload));
-  window.dispatchEvent(new Event(TEAM_DESCRIPTIONS_CHANGE_EVENT));
-}
-
-function writeLocalCsv(csv: string, meta?: Pick<StoredTeamDescriptions, "updatedAt" | "updatedBy">) {
-  writeLocalPayload({
+function writeLocalCsv(csv: string) {
+  const payload: StoredTeamDescriptions = {
     version: 1,
     csv,
-    updatedAt: meta?.updatedAt ?? new Date().toISOString(),
-    updatedBy: meta?.updatedBy ?? mentorEmail(),
-  });
-}
-
-/** Last team descriptions cached in this browser (may be stale until Firestore syncs). */
-export function loadTeamDescriptionsLocal(): StoredTeamDescriptions | null {
-  return readLocalPayload();
+    updatedAt: new Date().toISOString(),
+    updatedBy: mentorEmail(),
+  };
+  localStorage.setItem(KEY, JSON.stringify(payload));
+  window.dispatchEvent(new Event(TEAM_DESCRIPTIONS_CHANGE_EVENT));
 }
 
 export function usesFirebaseTeamDescriptions(): boolean {
@@ -59,9 +47,7 @@ export function usesFirebaseTeamDescriptions(): boolean {
 export async function saveTeamDescriptions(csv: string): Promise<StoredTeamDescriptions> {
   const updatedBy = mentorEmail();
   if (isFirebaseConfigured()) {
-    const payload = await saveTeamDescriptionsToFirestore(csv, updatedBy);
-    writeLocalPayload(payload);
-    return payload;
+    return saveTeamDescriptionsToFirestore(csv, updatedBy);
   }
   writeLocalCsv(csv);
   return {
@@ -77,24 +63,7 @@ export function subscribeTeamDescriptions(
   onError?: (error: Error) => void,
 ): () => void {
   if (isFirebaseConfigured()) {
-    const cached = readLocalPayload();
-    if (cached) onData(cached);
-
-    return subscribeTeamDescriptionsFromFirestore(
-      (data) => {
-        if (data) {
-          writeLocalPayload(data);
-          onData(data);
-          return;
-        }
-        const cached = readLocalPayload();
-        if (!cached) onData(null);
-      },
-      (err) => {
-        onError?.(err);
-        onData(readLocalPayload());
-      },
-    );
+    return subscribeTeamDescriptionsFromFirestore(onData, onError);
   }
 
   const refresh = () => {

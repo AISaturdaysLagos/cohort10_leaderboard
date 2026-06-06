@@ -45,9 +45,7 @@ export function usesFirebaseTeamMap(): boolean {
 export async function saveTeamMap(csv: string): Promise<StoredTeamMap> {
   const updatedBy = mentorEmail();
   if (isFirebaseConfigured()) {
-    const payload = await saveTeamMapToFirestore(csv, updatedBy);
-    writeLocalCsv(csv);
-    return payload;
+    return saveTeamMapToFirestore(csv, updatedBy);
   }
   writeLocalCsv(csv);
   return {

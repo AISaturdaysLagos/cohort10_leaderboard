@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { waitForFirebaseUser } from "../lib/firebase";
+import { useEffect, useMemo, useState } from "react";
+import { isFirebaseConfigured, waitForFirebaseUser } from "../lib/firebase";
+import { fetchTeamDescriptionsFromServer } from "../lib/firebaseTeamDescriptions";
+import { fetchTeamDiscordFromServer } from "../lib/firebaseTeamDiscord";
+import { fetchTeamLeadersFromServer } from "../lib/firebaseTeamLeaders";
+import { fetchTeamMapFromServer } from "../lib/firebaseTeamMap";
 import { parseTeamAssignmentsCsv } from "../lib/teamAssignments";
 import { parseTeamDescriptionsCsv, teamDescriptionsById } from "../lib/teamDescriptions";
 import { subscribeTeamDescriptions } from "../lib/teamDescriptionsMap";
@@ -20,20 +24,6 @@ export type TeamPortalData = {
   discordLinks: Map<string, TeamDiscordLink>;
 };
 
-type StreamKey = "map" | "leaders" | "descriptions" | "discord";
-
-type StreamSeen = Record<StreamKey, boolean>;
-
-function markStreamReady(
-  key: StreamKey,
-  seen: { current: StreamSeen },
-  onReady: () => void,
-): void {
-  if (seen.current[key]) return;
-  seen.current[key] = true;
-  onReady();
-}
-
 export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [teamMapCsv, setTeamMapCsv] = useState("");
   const [leadersCsv, setLeadersCsv] = useState("");
@@ -42,12 +32,6 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
   const [loading, setLoading] = useState(enabled);
   const [rosterLoaded, setRosterLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const streamsSeen = useRef<StreamSeen>({
-    map: false,
-    leaders: false,
-    descriptions: false,
-    discord: false,
-  });
 
   useEffect(() => {
     if (!enabled) {
@@ -57,42 +41,61 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
       setLeadersCsv("");
       setDescriptionsCsv("");
       setDiscordCsv("");
-      streamsSeen.current = { map: false, leaders: false, descriptions: false, discord: false };
       return;
     }
 
     let cancelled = false;
     const cleanups: (() => void)[] = [];
-    streamsSeen.current = { map: false, leaders: false, descriptions: false, discord: false };
-    setRosterLoaded(false);
-    setLoading(true);
-
-    let pending = 4;
-    const streamFinished = () => {
-      pending -= 1;
-      if (pending <= 0) setLoading(false);
-    };
 
     void (async () => {
+      setLoading(true);
+      setRosterLoaded(false);
       setError(null);
       await waitForFirebaseUser();
       if (cancelled) return;
+
+      if (isFirebaseConfigured()) {
+        try {
+          const [teamMap, leaders, descriptions, discord] = await Promise.all([
+            fetchTeamMapFromServer(),
+            fetchTeamLeadersFromServer(),
+            fetchTeamDescriptionsFromServer(),
+            fetchTeamDiscordFromServer(),
+          ]);
+          if (cancelled) return;
+          setTeamMapCsv(teamMap?.csv ?? "");
+          setLeadersCsv(leaders?.csv ?? "");
+          setDescriptionsCsv(descriptions?.csv ?? "");
+          setDiscordCsv(discord?.csv ?? "");
+          setRosterLoaded(true);
+        } catch (err) {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : "Could not load team data.");
+          setRosterLoaded(true);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
+
+      let pending = 4;
+      const streamFinished = () => {
+        pending -= 1;
+        if (pending <= 0) {
+          setRosterLoaded(true);
+          setLoading(false);
+        }
+      };
 
       cleanups.push(
         subscribeTeamMap(
           (data) => {
             setTeamMapCsv(data?.csv ?? "");
-            markStreamReady("map", streamsSeen, () => {
-              setRosterLoaded(true);
-              streamFinished();
-            });
+            streamFinished();
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            markStreamReady("map", streamsSeen, () => {
-              setRosterLoaded(true);
-              streamFinished();
-            });
+            streamFinished();
           },
         ),
       );
@@ -100,11 +103,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamLeaders(
           (data) => {
             setLeadersCsv(data?.csv ?? "");
-            markStreamReady("leaders", streamsSeen, streamFinished);
+            streamFinished();
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            markStreamReady("leaders", streamsSeen, streamFinished);
+            streamFinished();
           },
         ),
       );
@@ -112,11 +115,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamDescriptions(
           (data) => {
             setDescriptionsCsv(data?.csv ?? "");
-            markStreamReady("descriptions", streamsSeen, streamFinished);
+            streamFinished();
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            markStreamReady("descriptions", streamsSeen, streamFinished);
+            streamFinished();
           },
         ),
       );
@@ -124,11 +127,11 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
         subscribeTeamDiscord(
           (data) => {
             setDiscordCsv(data?.csv ?? "");
-            markStreamReady("discord", streamsSeen, streamFinished);
+            streamFinished();
           },
           (err) => {
             setError((prev) => prev ?? err.message);
-            markStreamReady("discord", streamsSeen, streamFinished);
+            streamFinished();
           },
         ),
       );
@@ -144,7 +147,8 @@ export function useTeamPortalData(enabled: boolean): TeamPortalData {
     if (!teamMapCsv.trim()) return [];
     try {
       return parseTeamAssignmentsCsv(teamMapCsv);
-    } catch {
+    } catch (err) {
+      console.error("Team assignments CSV parse failed:", err);
       return [];
     }
   }, [teamMapCsv]);

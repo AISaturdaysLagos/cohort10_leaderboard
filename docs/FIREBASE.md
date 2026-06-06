@@ -269,7 +269,7 @@ Learners sign in with **Google** or **email + password**. After sign-in, the app
 
 Enable **Google** and **Email/Password** in Firebase Console (see [Authentication](#authentication) above). Students without Gmail can create an account with the same email listed in the cohort roster.
 
-**Browser caching:** `/my-team` loads descriptions live from Firestore (`onSnapshot`). Each successful sync also writes to `localStorage` key `tri-saturdays-league-team-descriptions-v1` as an offline fallback. Hero **photos** are separate URLs (Wikimedia/Flickr) and may be cached by the browser until you hard-refresh. You must be **signed in** to read config docs (Firestore rules). Seeding via `npm run firebase:seed-team-descriptions` updates Firestore only — reload `/my-team` (signed in) once to refresh the local cache.
+**Data loading:** `/my-team` fetches team config directly from Firestore on each visit (server read, no browser cache). Hero **photos** are separate URLs (Wikimedia/Flickr) and may be cached by the browser until you hard-refresh. You must be **signed in** to read config docs (Firestore rules).
 
 **Local production preview:** After `npm run build:pages`, use `npm run preview:pages` and open **`http://localhost:4173/cohort10_leaderboard/my-team`** (not the site root — assets use the GitHub Pages base path). For day-to-day work, `npm run dev` at `http://localhost:5173/my-team` is simpler.
 

@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamDescriptions } from "../types";
 import { getFirebaseDb } from "./firebase";
 
@@ -33,6 +33,12 @@ export async function saveTeamDescriptionsToFirestore(
   };
   await setDoc(teamDescriptionsRef(), payload);
   return payload;
+}
+
+export async function fetchTeamDescriptionsFromServer(): Promise<StoredTeamDescriptions | null> {
+  const snap = await getDocFromServer(teamDescriptionsRef());
+  if (!snap.exists()) return null;
+  return normalizeTeamDescriptions(snap.data());
 }
 
 export function subscribeTeamDescriptionsFromFirestore(

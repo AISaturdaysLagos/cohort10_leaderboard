@@ -44,9 +44,7 @@ export function usesFirebaseTeamDiscord(): boolean {
 export async function saveTeamDiscord(csv: string): Promise<StoredTeamDiscord> {
   const updatedBy = mentorEmail();
   if (isFirebaseConfigured()) {
-    const payload = await saveTeamDiscordToFirestore(csv, updatedBy);
-    writeLocalCsv(csv);
-    return payload;
+    return saveTeamDiscordToFirestore(csv, updatedBy);
   }
   writeLocalCsv(csv);
   return {

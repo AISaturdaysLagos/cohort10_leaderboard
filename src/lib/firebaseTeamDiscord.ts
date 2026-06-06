@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamDiscord } from "../types";
 import { getFirebaseDb } from "./firebase";
 
@@ -33,6 +33,12 @@ export async function saveTeamDiscordToFirestore(
   };
   await setDoc(teamDiscordRef(), payload);
   return payload;
+}
+
+export async function fetchTeamDiscordFromServer(): Promise<StoredTeamDiscord | null> {
+  const snap = await getDocFromServer(teamDiscordRef());
+  if (!snap.exists()) return null;
+  return normalizeTeamDiscord(snap.data());
 }
 
 export function subscribeTeamDiscordFromFirestore(

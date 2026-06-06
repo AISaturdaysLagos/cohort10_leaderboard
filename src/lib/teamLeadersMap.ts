@@ -44,9 +44,7 @@ export function usesFirebaseTeamLeaders(): boolean {
 export async function saveTeamLeaders(csv: string): Promise<StoredTeamLeaders> {
   const updatedBy = mentorEmail();
   if (isFirebaseConfigured()) {
-    const payload = await saveTeamLeadersToFirestore(csv, updatedBy);
-    writeLocalCsv(csv);
-    return payload;
+    return saveTeamLeadersToFirestore(csv, updatedBy);
   }
   writeLocalCsv(csv);
   return {

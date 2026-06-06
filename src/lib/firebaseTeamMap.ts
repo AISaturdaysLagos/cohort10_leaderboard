@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { doc, getDocFromServer, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import type { StoredTeamMap } from "../types";
 import { getFirebaseDb } from "./firebase";
 
@@ -30,6 +30,13 @@ export async function saveTeamMapToFirestore(csv: string, updatedBy?: string): P
   };
   await setDoc(teamMapRef(), payload);
   return payload;
+}
+
+/** Always reads from Firestore server (no offline/cache snapshot). */
+export async function fetchTeamMapFromServer(): Promise<StoredTeamMap | null> {
+  const snap = await getDocFromServer(teamMapRef());
+  if (!snap.exists()) return null;
+  return normalizeTeamMap(snap.data());
 }
 
 export function subscribeTeamMapFromFirestore(

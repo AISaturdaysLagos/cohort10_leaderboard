@@ -1,19 +1,16 @@
 import {
-  isSignInWithEmailLink,
+  GoogleAuthProvider,
   onAuthStateChanged,
-  sendSignInLinkToEmail,
-  signInWithEmailLink,
+  signInWithPopup,
   signOut,
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "./firebase";
 
-const EMAIL_FOR_SIGN_IN_KEY = "tri-saturdays-league-email-for-sign-in";
 const DEV_SESSION_KEY = "tri-saturdays-league-learner-email";
 
-function teamPortalPath(): string {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${window.location.origin}${base}/my-team`;
+function firebaseAuthCode(error: unknown): string {
+  return error && typeof error === "object" && "code" in error ? String(error.code) : "";
 }
 
 export function isLearnerAuthConfigured(): boolean {
@@ -43,45 +40,22 @@ export function subscribeLearnerAuth(onChange: (email: string | null) => void): 
   return () => window.removeEventListener("storage", onStorage);
 }
 
-export async function sendLearnerSignInLink(email: string): Promise<string | null> {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@") || !normalized.includes(".")) {
-    return "Enter a valid email address.";
-  }
+export async function tryLearnerGoogleLogin(): Promise<string | null> {
   if (!isFirebaseConfigured()) {
-    sessionStorage.setItem(DEV_SESSION_KEY, normalized);
-    return null;
+    return "Sign-in is not configured.";
   }
   try {
-    await sendSignInLinkToEmail(getFirebaseAuth(), normalized, {
-      url: teamPortalPath(),
-      handleCodeInApp: true,
-    });
-    window.localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, normalized);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    await signInWithPopup(getFirebaseAuth(), provider);
     return null;
-  } catch {
-    return "Could not send sign-in link. Check the email address and try again.";
-  }
-}
-
-export async function completeLearnerEmailLinkSignIn(): Promise<string | null> {
-  if (!isFirebaseConfigured()) return null;
-  const auth = getFirebaseAuth();
-  if (!isSignInWithEmailLink(auth, window.location.href)) return null;
-
-  let email = window.localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
-  if (!email) {
-    return "Open the sign-in link on the same browser where you requested it, or enter your email again.";
-  }
-
-  try {
-    await signInWithEmailLink(auth, email, window.location.href);
-    window.localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
-    const path = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/my-team`.replace(/^\//, "/");
-    window.history.replaceState({}, document.title, path);
-    return null;
-  } catch {
-    return "This sign-in link is invalid or has expired. Request a new link.";
+  } catch (error: unknown) {
+    const code = firebaseAuthCode(error);
+    if (code === "auth/popup-closed-by-user") return null;
+    if (code === "auth/operation-not-allowed") {
+      return "Google sign-in is not enabled. Ask your mentor to enable it in Firebase Console (Authentication → Sign-in method → Google).";
+    }
+    return "Google sign-in failed. Try again.";
   }
 }
 

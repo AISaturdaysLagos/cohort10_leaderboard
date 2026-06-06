@@ -1,11 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import {
-  completeLearnerEmailLinkSignIn,
-  devSignInWithEmail,
-  isLearnerAuthConfigured,
-  sendLearnerSignInLink,
-} from "../../lib/learnerAuth";
+import { devSignInWithEmail, isLearnerAuthConfigured, tryLearnerGoogleLogin } from "../../lib/learnerAuth";
 import { LEAGUE_NAME } from "../../lib/triAiBrand";
 
 type TeamPortalLoginProps = {
@@ -16,46 +11,26 @@ export function TeamPortalLogin({ onSignedIn }: TeamPortalLoginProps) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
-  const [completingLink, setCompletingLink] = useState(true);
   const firebaseMode = isLearnerAuthConfigured();
 
-  useEffect(() => {
-    if (!firebaseMode) {
-      setCompletingLink(false);
-      return;
-    }
-    void completeLearnerEmailLinkSignIn().then((err) => {
-      setCompletingLink(false);
-      if (err) setError(err);
-      else onSignedIn();
-    });
-  }, [firebaseMode, onSignedIn]);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onGoogleSignIn = async () => {
     setError(null);
     setSubmitting(true);
-    if (firebaseMode) {
-      const err = await sendLearnerSignInLink(email);
-      setSubmitting(false);
-      if (err) setError(err);
-      else setLinkSent(true);
-      return;
-    }
-    const err = devSignInWithEmail(email);
+    const err = await tryLearnerGoogleLogin();
     setSubmitting(false);
     if (err) setError(err);
     else onSignedIn();
   };
 
-  if (completingLink) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center font-body text-tri-muted">
-        Completing sign-in…
-      </div>
-    );
-  }
+  const onDevSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const err = devSignInWithEmail(email);
+    setSubmitting(false);
+    if (err) setError(err);
+    else onSignedIn();
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-16">
@@ -64,14 +39,24 @@ export function TeamPortalLogin({ onSignedIn }: TeamPortalLoginProps) {
         <h1 className="mt-2 font-display text-2xl text-tri-forest">Find your team</h1>
         <p className="mt-3 font-body text-tri-lead text-tri-muted">
           {firebaseMode
-            ? linkSent
-              ? "Check your inbox for a sign-in link. Open it on this device to see your team."
-              : "Enter the email you use for Skills Boost. We will send a one-time sign-in link, then show your team assignment."
+            ? "Sign in with the Google account linked to your Skills Boost email. We will show your team assignment after sign-in."
             : "Enter your cohort email to look up your team (local development — no verification)."}
         </p>
 
-        {!linkSent ? (
-          <form className="mt-8 space-y-4" onSubmit={(e) => void onSubmit(e)}>
+        {firebaseMode ? (
+          <div className="mt-8 space-y-4">
+            <button
+              type="button"
+              className="tri-btn-primary w-full justify-center gap-2"
+              disabled={submitting}
+              onClick={() => void onGoogleSignIn()}
+            >
+              {submitting ? "Signing in…" : "Sign in with Google"}
+            </button>
+            {error ? <p className="rounded border tri-alert-error">{error}</p> : null}
+          </div>
+        ) : (
+          <form className="mt-8 space-y-4" onSubmit={(e) => void onDevSubmit(e)}>
             <label className="block font-body text-tri-nav">
               <span className="font-medium text-tri-ink">Email address</span>
               <input
@@ -86,32 +71,9 @@ export function TeamPortalLogin({ onSignedIn }: TeamPortalLoginProps) {
             </label>
             {error ? <p className="rounded border tri-alert-error">{error}</p> : null}
             <button type="submit" className="tri-btn-primary w-full justify-center" disabled={submitting}>
-              {submitting
-                ? firebaseMode
-                  ? "Sending link…"
-                  : "Looking up…"
-                : firebaseMode
-                  ? "Email me a sign-in link"
-                  : "Continue"}
+              {submitting ? "Looking up…" : "Continue"}
             </button>
           </form>
-        ) : (
-          <div className="mt-8 space-y-4">
-            <p className="rounded border border-tri-leaf/35 bg-tri-mist px-4 py-3 font-body text-sm text-tri-forest">
-              Link sent to <strong>{email.trim().toLowerCase()}</strong>. The page will update automatically after
-              you click the link.
-            </p>
-            <button
-              type="button"
-              className="tri-btn-muted w-full justify-center"
-              onClick={() => {
-                setLinkSent(false);
-                setError(null);
-              }}
-            >
-              Use a different email
-            </button>
-          </div>
         )}
 
         <Link to="/leaderboard" className="mt-6 inline-block font-body text-sm font-medium text-tri-leaf hover:underline">

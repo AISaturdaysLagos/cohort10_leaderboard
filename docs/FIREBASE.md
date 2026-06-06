@@ -16,6 +16,8 @@ When Firebase is configured, **Publish** writes to Firestore and every student o
 3. Add your **Authorised domains** if needed (`localhost` is allowed by default; add your GitHub Pages host e.g. `aisaturdayslagos.github.io`)
 4. In **Settings → Authorised domains**, ensure the Pages URL is listed for production sign-in
 
+Both **admin** (`/admin`) and **students** (`/my-team`) sign in with Google. Admin access is restricted by email/domain allowlist (below); students can use any Google account — the app matches their signed-in email to the team roster.
+
 Set who can use `/admin` in `.env.local`:
 
 **Organisation domain (recommended for TRI AI):**
@@ -258,15 +260,13 @@ npm run firebase:seed-config
 
 ### Student team portal (`/my-team`)
 
-Learners sign in with a **passwordless email link** (Firebase Authentication). After sign-in, the app reads `config/teamMap`, `config/teamLeaders`, and `config/teamDescriptions` and shows:
+Learners sign in with **Google** (same Firebase Authentication provider as admin). After sign-in, the app reads `config/teamMap`, `config/teamLeaders`, and `config/teamDescriptions` and shows:
 
 - **All learners:** team name + description
 - **Team leaders** (Role = Team Leader 1 / 2): full roster with names and roles
 - **Admins** (allowlisted mentor accounts): team picker + preview as student or team leader
 
-Enable **Email link** sign-in in Firebase Console → Authentication → Sign-in method.
-
-Add your site URL (and `localhost` for dev) under Authentication → Settings → **Authorized domains**.
+Google sign-in must be enabled in Firebase Console (see [Authentication](#authentication) above).
 
 **Browser caching:** `/my-team` loads descriptions live from Firestore (`onSnapshot`). Each successful sync also writes to `localStorage` key `tri-saturdays-league-team-descriptions-v1` as an offline fallback. Hero **photos** are separate URLs (Wikimedia/Flickr) and may be cached by the browser until you hard-refresh. You must be **signed in** to read config docs (Firestore rules). Seeding via `npm run firebase:seed-team-descriptions` updates Firestore only — reload `/my-team` (signed in) once to refresh the local cache.
 

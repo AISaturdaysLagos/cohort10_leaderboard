@@ -1,9 +1,16 @@
 import Papa from "papaparse";
 import type { TeamMemberProfile } from "../types";
-import { canonicalizeEmailForMatch } from "./teamAssignments";
+import { canonicalizeEmailForMatch, normalizeEmail } from "./teamAssignments";
 
 function normEmail(s: string): string {
-  return canonicalizeEmailForMatch(s);
+  return normalizeEmail(s);
+}
+
+export function profileForEmail(
+  profiles: Map<string, TeamMemberProfile>,
+  email: string,
+): TeamMemberProfile | undefined {
+  return profiles.get(canonicalizeEmailForMatch(email));
 }
 
 function stripBom(text: string): string {
@@ -75,7 +82,7 @@ export function upsertMemberProfile(
 ): TeamMemberProfile[] {
   const norm = normEmail(email);
   if (!norm) return rows;
-  const idx = rows.findIndex((r) => r.email === norm);
+  const idx = rows.findIndex((r) => canonicalizeEmailForMatch(r.email) === canonicalizeEmailForMatch(norm));
   const existing = idx >= 0 ? rows[idx] : null;
   const role = patch.role ?? existing?.role ?? "Member";
   const leaderRank =
@@ -142,7 +149,7 @@ export function parseTeamLeadersCsv(text: string): TeamMemberProfile[] {
   }
 
   const byEmail = new Map<string, TeamMemberProfile>();
-  for (const r of rows) byEmail.set(r.email, r);
+  for (const r of rows) byEmail.set(canonicalizeEmailForMatch(r.email), r);
   return [...byEmail.values()];
 }
 
@@ -176,7 +183,7 @@ export function teamLeadersToCsv(rows: TeamMemberProfile[]): string {
 }
 
 export function teamLeadersToLookup(rows: TeamMemberProfile[]): Map<string, TeamMemberProfile> {
-  return new Map(rows.map((r) => [r.email, r]));
+  return new Map(rows.map((r) => [canonicalizeEmailForMatch(r.email), r]));
 }
 
 /** Leaders first (by rank), then members alphabetically by email. */
@@ -185,8 +192,8 @@ export function sortMembersByProfile(
   profiles: Map<string, TeamMemberProfile>,
 ): string[] {
   return [...members].sort((a, b) => {
-    const pa = profiles.get(a);
-    const pb = profiles.get(b);
+    const pa = profileForEmail(profiles, a);
+    const pb = profileForEmail(profiles, b);
     const ra = pa?.leaderRank ?? 999;
     const rb = pb?.leaderRank ?? 999;
     if (ra !== rb) return ra - rb;

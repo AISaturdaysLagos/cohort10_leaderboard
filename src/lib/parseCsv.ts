@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import type { ActivityRow, RosterRow } from "../types";
-import { parseTeamAssignmentsCsv, teamAssignmentsToLookup } from "./teamAssignments";
+import { parseTeamAssignmentsCsv, teamAssignmentsToLookup, canonicalizeEmailForMatch } from "./teamAssignments";
 import { parseUtcDate } from "./dates";
 
 function norm(s: string): string {
@@ -144,8 +144,8 @@ export function parseTeamLookupCsv(text: string): Map<string, string> {
 export function applyTeamMapToRoster(roster: RosterRow[], lookup: Map<string, string>): RosterRow[] {
   if (!lookup.size) return [];
   return roster
-    .filter((r) => lookup.has(r.email))
-    .map((r) => ({ ...r, team: lookup.get(r.email)! }));
+    .filter((r) => lookup.has(canonicalizeEmailForMatch(r.email)))
+    .map((r) => ({ ...r, team: lookup.get(canonicalizeEmailForMatch(r.email))! }));
 }
 
 /** Activity rows for learners listed in the team map only. */
@@ -154,7 +154,7 @@ export function filterActivityByTeamMap<T extends { member: string }>(
   lookup: Map<string, string>,
 ): T[] {
   if (!lookup.size) return [];
-  return rows.filter((r) => lookup.has(r.member));
+  return rows.filter((r) => lookup.has(canonicalizeEmailForMatch(r.member)));
 }
 
 /** @deprecated Use applyTeamMapToRoster */

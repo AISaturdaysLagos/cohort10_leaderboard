@@ -1,11 +1,7 @@
 import type { TeamAssignmentRow, TeamDescription, TeamDiscordLink, TeamMemberProfile, TeamPortalContext, TeamPortalMember } from "../types";
-import { canonicalizeEmailForMatch, groupTeams } from "./teamAssignments";
+import { canonicalizeEmailForMatch, groupTeams, normalizeEmail } from "./teamAssignments";
 import { findTeamDiscordLink } from "./teamDiscord";
-import { formatMemberName, isTeamLeaderRole, sortMembersByProfile } from "./teamLeaders";
-
-function normEmail(email: string): string {
-  return canonicalizeEmailForMatch(email);
-}
+import { formatMemberName, isTeamLeaderRole, profileForEmail, sortMembersByProfile } from "./teamLeaders";
 
 function findDescription(
   descriptions: Map<string, TeamDescription>,
@@ -16,9 +12,9 @@ function findDescription(
 }
 
 function toPortalMember(email: string, profiles: Map<string, TeamMemberProfile>): TeamPortalMember {
-  const profile = profiles.get(normEmail(email));
+  const profile = profileForEmail(profiles, email);
   return {
-    email: normEmail(email),
+    email: normalizeEmail(email),
     firstName: profile?.firstName ?? "",
     lastName: profile?.lastName ?? "",
     role: profile?.role ?? "",
@@ -45,18 +41,18 @@ export function resolveTeamPortal(
   descriptions: Map<string, TeamDescription>,
   discordLinks: Map<string, TeamDiscordLink>,
 ): TeamPortalContext | null {
-  const key = normEmail(email);
-  const assignment = assignments.find((r) => r.email === key);
+  const key = canonicalizeEmailForMatch(email);
+  const assignment = assignments.find((r) => canonicalizeEmailForMatch(r.email) === key);
   if (!assignment) return null;
 
-  const profile = profiles.get(key) ?? null;
+  const profile = profileForEmail(profiles, email) ?? null;
   const isLeader = profile ? isTeamLeaderRole(profile.role) : false;
   const description = findDescription(descriptions, assignment.teamId, assignment.teamName);
   const discord = findTeamDiscordLink(discordLinks, assignment.teamId, assignment.teamName);
   const members = isLeader ? buildTeamRoster(assignment.teamId, assignments, profiles) : [];
 
   return {
-    email: key,
+    email: normalizeEmail(assignment.email),
     teamId: assignment.teamId,
     teamName: assignment.teamName,
     description,
@@ -82,10 +78,10 @@ export function resolveTeamPortalForTeam(
   const description = findDescription(descriptions, group.teamId, group.teamName);
   const discord = findTeamDiscordLink(discordLinks, group.teamId, group.teamName);
   const previewEmail = options.previewEmail
-    ? normEmail(options.previewEmail)
-    : group.members.find((m) => isTeamLeaderRole(profiles.get(m)?.role ?? "")) ?? group.members[0];
+    ? normalizeEmail(options.previewEmail)
+    : group.members.find((m) => isTeamLeaderRole(profileForEmail(profiles, m)?.role ?? "")) ?? group.members[0];
 
-  const profile = previewEmail ? (profiles.get(previewEmail) ?? null) : null;
+  const profile = previewEmail ? (profileForEmail(profiles, previewEmail) ?? null) : null;
 
   return {
     email: previewEmail ?? "",

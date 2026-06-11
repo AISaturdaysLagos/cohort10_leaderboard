@@ -1,9 +1,14 @@
 import Papa from "papaparse";
 import type { TeamAssignmentRow, TeamGroup, TeamMemberProfile } from "../types";
 
-/** Lowercase + Gmail/googlemail dot and plus-alias normalization for roster matching. */
+/** Trim and lowercase — preserves Gmail dots and + aliases in stored data. */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Lowercase + Gmail/googlemail dot and plus-alias normalization for roster matching only. */
 export function canonicalizeEmailForMatch(email: string): string {
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeEmail(email);
   const at = normalized.lastIndexOf("@");
   if (at <= 0) return normalized;
 
@@ -20,8 +25,12 @@ export function canonicalizeEmailForMatch(email: string): string {
   return `${local}@${domain}`;
 }
 
+export function emailsMatch(a: string, b: string): boolean {
+  return canonicalizeEmailForMatch(a) === canonicalizeEmailForMatch(b);
+}
+
 function normEmail(s: string): string {
-  return canonicalizeEmailForMatch(s);
+  return normalizeEmail(s);
 }
 
 function stripBom(text: string): string {
@@ -118,7 +127,7 @@ export function teamAssignmentsToCsv(rows: TeamAssignmentRow[]): string {
 }
 
 export function teamAssignmentsToLookup(rows: TeamAssignmentRow[]): Map<string, string> {
-  return new Map(rows.map((r) => [r.email, r.teamName]));
+  return new Map(rows.map((r) => [canonicalizeEmailForMatch(r.email), r.teamName]));
 }
 
 /** Build assignment rows from leader profiles when config/teamMap is missing or empty. */
@@ -130,7 +139,7 @@ export function assignmentsFromLeaderProfiles(profiles: TeamMemberProfile[]): Te
     const teamId = profile.teamId.trim() || teamName;
     if (!teamId) continue;
     rows.push({
-      email: canonicalizeEmailForMatch(profile.email),
+      email: normalizeEmail(profile.email),
       teamId,
       teamName: teamName || teamId,
     });
@@ -147,7 +156,7 @@ function compareTeamIds(a: string, b: string): number {
 
 function dedupeByEmail(rows: TeamAssignmentRow[]): TeamAssignmentRow[] {
   const byEmail = new Map<string, TeamAssignmentRow>();
-  for (const r of rows) byEmail.set(r.email, r);
+  for (const r of rows) byEmail.set(canonicalizeEmailForMatch(r.email), r);
   return [...byEmail.values()];
 }
 
@@ -190,8 +199,9 @@ export function validateTeamAssignments(rows: TeamAssignmentRow[]): string | nul
   for (const r of rows) {
     if (!isValidEmail(r.email)) return `Invalid email: ${r.email}`;
     if (!r.teamName.trim()) return `Missing team name for ${r.email}`;
-    if (seen.has(r.email)) return `Duplicate email: ${r.email}`;
-    seen.add(r.email);
+    const key = canonicalizeEmailForMatch(r.email);
+    if (seen.has(key)) return `Duplicate email: ${r.email}`;
+    seen.add(key);
   }
   return null;
 }
@@ -203,8 +213,8 @@ export function renameTeam(rows: TeamAssignmentRow[], teamId: string, teamName: 
 }
 
 export function removeMember(rows: TeamAssignmentRow[], email: string): TeamAssignmentRow[] {
-  const key = normEmail(email);
-  return rows.filter((r) => r.email !== key);
+  const key = canonicalizeEmailForMatch(email);
+  return rows.filter((r) => canonicalizeEmailForMatch(r.email) !== key);
 }
 
 export function removeTeam(rows: TeamAssignmentRow[], teamId: string): TeamAssignmentRow[] {
@@ -219,7 +229,9 @@ export function addMember(
 ): TeamAssignmentRow[] {
   const normalized = normEmail(email);
   if (!isValidEmail(normalized)) throw new Error("Enter a valid email address.");
-  if (rows.some((r) => r.email === normalized)) throw new Error(`Email already assigned: ${normalized}`);
+  if (rows.some((r) => emailsMatch(r.email, normalized))) {
+    throw new Error(`Email already assigned: ${normalized}`);
+  }
   return [...rows, { email: normalized, teamId, teamName: teamName.trim() || teamId }];
 }
 
@@ -231,8 +243,10 @@ export function updateMemberEmail(
   const from = normEmail(oldEmail);
   const to = normEmail(newEmail);
   if (!isValidEmail(to)) throw new Error("Enter a valid email address.");
-  if (from !== to && rows.some((r) => r.email === to)) throw new Error(`Email already assigned: ${to}`);
-  return rows.map((r) => (r.email === from ? { ...r, email: to } : r));
+  if (!emailsMatch(from, to) && rows.some((r) => emailsMatch(r.email, to))) {
+    throw new Error(`Email already assigned: ${to}`);
+  }
+  return rows.map((r) => (emailsMatch(r.email, from) ? { ...r, email: to } : r));
 }
 
 export function moveMember(
@@ -241,9 +255,9 @@ export function moveMember(
   toTeamId: string,
   toTeamName: string,
 ): TeamAssignmentRow[] {
-  const key = normEmail(email);
+  const key = canonicalizeEmailForMatch(email);
   return rows.map((r) =>
-    r.email === key ? { ...r, teamId: toTeamId, teamName: toTeamName.trim() || toTeamId } : r,
+    emailsMatch(r.email, key) ? { ...r, teamId: toTeamId, teamName: toTeamName.trim() || toTeamId } : r,
   );
 }
 
@@ -277,7 +291,7 @@ export function filterTeams(
     const teamMatch = g.teamName.toLowerCase().includes(q) || g.teamId.toLowerCase().includes(q);
     const matchingMembers = g.members.filter((m) => {
       if (m.includes(q)) return true;
-      const p = memberProfiles?.get(m);
+      const p = memberProfiles?.get(canonicalizeEmailForMatch(m));
       if (!p) return false;
       const name = [p.firstName, p.lastName].filter(Boolean).join(" ").toLowerCase();
       return name.includes(q) || (p.role?.toLowerCase().includes(q) ?? false);
@@ -309,7 +323,7 @@ export function removeTeamFromGroups(groups: TeamGroup[], teamId: string): TeamG
 export function addMemberToGroup(groups: TeamGroup[], teamId: string, email: string): TeamGroup[] {
   const normalized = normEmail(email);
   if (!isValidEmail(normalized)) throw new Error("Enter a valid email address.");
-  if (groups.some((g) => g.members.includes(normalized))) {
+  if (groups.some((g) => g.members.some((m) => emailsMatch(m, normalized)))) {
     throw new Error(`Email already assigned: ${normalized}`);
   }
   return groups.map((g) =>
@@ -318,9 +332,9 @@ export function addMemberToGroup(groups: TeamGroup[], teamId: string, email: str
 }
 
 export function removeMemberFromGroup(groups: TeamGroup[], teamId: string, email: string): TeamGroup[] {
-  const key = normEmail(email);
+  const key = canonicalizeEmailForMatch(email);
   return groups.map((g) =>
-    g.teamId === teamId ? { ...g, members: g.members.filter((m) => m !== key) } : g,
+    g.teamId === teamId ? { ...g, members: g.members.filter((m) => !emailsMatch(m, key)) } : g,
   );
 }
 
@@ -333,12 +347,12 @@ export function updateMemberInGroup(
   const from = normEmail(oldEmail);
   const to = normEmail(newEmail);
   if (!isValidEmail(to)) throw new Error("Enter a valid email address.");
-  if (from !== to && groups.some((g) => g.members.includes(to))) {
+  if (!emailsMatch(from, to) && groups.some((g) => g.members.some((m) => emailsMatch(m, to)))) {
     throw new Error(`Email already assigned: ${to}`);
   }
   return groups.map((g) =>
     g.teamId === teamId
-      ? { ...g, members: g.members.map((m) => (m === from ? to : m)).sort() }
+      ? { ...g, members: g.members.map((m) => (emailsMatch(m, from) ? to : m)).sort() }
       : g,
   );
 }
@@ -353,19 +367,22 @@ export function moveMemberToGroup(
   email: string,
   toTeamId: string,
 ): TeamGroup[] {
-  const key = normEmail(email);
+  const key = canonicalizeEmailForMatch(email);
   const target = groups.find((g) => g.teamId === toTeamId);
   if (!target) throw new Error("Target team not found.");
   let found = false;
+  let memberEmail = normEmail(email);
   const next = groups.map((g) => {
-    if (g.members.includes(key)) {
+    const existing = g.members.find((m) => emailsMatch(m, key));
+    if (existing) {
       found = true;
-      return { ...g, members: g.members.filter((m) => m !== key) };
+      memberEmail = existing;
+      return { ...g, members: g.members.filter((m) => !emailsMatch(m, key)) };
     }
     return g;
   });
   if (!found) throw new Error("Member not found.");
   return next.map((g) =>
-    g.teamId === toTeamId ? { ...g, members: [...g.members, key].sort() } : g,
+    g.teamId === toTeamId ? { ...g, members: [...g.members, memberEmail].sort() } : g,
   );
 }

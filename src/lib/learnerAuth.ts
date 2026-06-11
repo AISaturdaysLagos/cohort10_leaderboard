@@ -8,7 +8,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "./firebase";
-import { canonicalizeEmailForMatch } from "./teamAssignments";
+import { canonicalizeEmailForMatch, normalizeEmail } from "./teamAssignments";
 
 const DEV_SESSION_KEY = "tri-saturdays-league-learner-email";
 
@@ -77,7 +77,7 @@ export function subscribeLearnerAuth(
 }
 
 function normalizeLearnerEmail(email: string): string | null {
-  const normalized = canonicalizeEmailForMatch(email);
+  const normalized = normalizeEmail(email);
   if (!normalized.includes("@") || !normalized.includes(".")) {
     return null;
   }

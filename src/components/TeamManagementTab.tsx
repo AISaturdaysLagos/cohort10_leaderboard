@@ -21,6 +21,7 @@ import {
   formatMemberName,
   isTeamLeaderRole,
   parseTeamLeadersCsv,
+  profileForEmail,
   profilesCsvEqual,
   sortMembersByProfile,
   TEAM_ROLE_OPTIONS,
@@ -744,7 +745,7 @@ function TeamCard({
 
   const leaderSummary = useMemo(() => {
     return sortedMembers
-      .map((email) => memberProfiles.get(email))
+      .map((email) => profileForEmail(memberProfiles, email))
       .filter((p): p is TeamMemberProfile => Boolean(p && isTeamLeaderRole(p.role)))
       .map((p) => `${formatMemberName(p) || p.email} (${p.role})`)
       .join(" · ");
@@ -843,7 +844,7 @@ function TeamCard({
                       <MemberRow
                         key={email}
                         email={email}
-                        profile={memberProfiles.get(email)}
+                        profile={profileForEmail(memberProfiles, email)}
                         metric={memberMetrics[email]}
                         showMetrics
                         onRemove={() => {
@@ -860,7 +861,7 @@ function TeamCard({
                     <MemberRow
                       key={email}
                       email={email}
-                      profile={memberProfiles.get(email)}
+                      profile={profileForEmail(memberProfiles, email)}
                       onRemove={() => {
                         if (window.confirm(`Remove ${email} from ${team.teamName}?`)) onRemoveMember(email);
                       }}

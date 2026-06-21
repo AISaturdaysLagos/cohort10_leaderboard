@@ -31,7 +31,7 @@ export const SCORING_CATEGORIES = [
   {
     id: "quiz",
     label: "Quiz",
-    description: "How well your team does on the course quizzes.",
+    description: "Combined quiz performance across all active team members.",
   },
   {
     id: "participation",

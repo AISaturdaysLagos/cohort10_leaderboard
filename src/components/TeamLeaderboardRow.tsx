@@ -124,7 +124,7 @@ function MentorMetricDetails({ m }: { m: TeamMetricBreakdown }) {
         label="Quiz"
         points={m.quizPoints}
         max={METRICS.weights.quiz}
-        detail={`avg ${pct(m.avgQuiz)}`}
+        detail={`${pct(m.avgQuiz)} across active`}
       />
       <MetricDetail
         label="Participation"

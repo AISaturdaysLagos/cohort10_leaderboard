@@ -21,7 +21,7 @@ export const METRIC_DEFINITIONS = [
     label: "Quiz / understanding",
     maxPoints: METRICS.weights.quiz,
     summary:
-      "Mean Given Score (0–1) on focal course rows × max points — each member contributes their best score from in-week focal rows, or all focal rows if none in week.",
+      "Sum of best Given Scores (0–1) across active members ÷ active roster size × max points — members with no quiz score count as 0.",
   },
   {
     id: "participation",
@@ -111,7 +111,7 @@ export function computeTeamMetrics(rows, roster, week, focalActivity) {
 
     let participatedCount = 0;
     let completedCount = 0;
-    const quizVals = [];
+    let totalQuiz = 0;
     let totalMinutes = 0;
 
     for (const email of actives) {
@@ -129,9 +129,7 @@ export function computeTeamMetrics(rows, roster, week, focalActivity) {
       );
       const pool = inWeekRows.length ? inWeekRows : fr;
       const scores = pool.map((r) => r.givenScore).filter((s) => s != null && Number.isFinite(s));
-      if (scores.length) {
-        quizVals.push(Math.max(...scores));
-      }
+      totalQuiz += scores.length ? Math.max(...scores) : 0;
       const mins = pool.reduce(
         (a, r) => a + (Number.isFinite(r.learningMinutes) ? r.learningMinutes : 0),
         0,
@@ -142,7 +140,7 @@ export function computeTeamMetrics(rows, roster, week, focalActivity) {
     const completionRate = completedCount / activeMembers;
     const completionPoints = completionRate * weights.completion;
 
-    const avgQuiz = quizVals.length ? quizVals.reduce((a, b) => a + b, 0) / quizVals.length : 0;
+    const avgQuiz = totalQuiz / activeMembers;
     const quizPoints = avgQuiz * weights.quiz;
 
     const participationRate = participatedCount / activeMembers;

@@ -49,16 +49,18 @@ Completion is **not** limited to the selected week — any historical completion
 
 **Question:** How well did the team do on quizzes for the focal course?
 
-For each active member:
+For each **active** member:
 
 1. Collect **Course** rows matching the focal `Activity`.
 2. Prefer rows whose **Date started** or **Date completed** falls inside the week.
 3. If none fall in the week, use **all** focal rows for that member.
-4. Take the member’s **maximum** `Given Score` (0–1 scale) from that pool.
-5. Average those per-member max scores **only among members who have at least one score** (members with no Given Score on the pool are excluded, not counted as zero).
+4. Take the member’s **maximum** `Given Score` (0–1 scale) from that pool, or **0** if they have no score.
+
+Then sum across the active roster and normalize by team size:
 
 ```
-avgQuiz = mean(perMemberMaxGivenScore)   // over members with scores
+totalQuiz = sum(perMemberMaxGivenScore)   // over all active members; missing = 0
+avgQuiz = totalQuiz / activeMembers
 quizPoints = avgQuiz × 20
 ```
 

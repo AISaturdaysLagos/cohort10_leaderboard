@@ -278,17 +278,16 @@ const ATTENDANCE_TIE_BREAK = [
   "consistencyPoints",
 ];
 
-/** Prefer teams not yet awarded elsewhere; keep full pool if everyone already won. */
-function preferUnawarded(pool, alreadyWon) {
+/** Exclude teams that already won an award this week — no fallback to re-award them. */
+function excludeAwarded(pool, alreadyWon) {
   if (!alreadyWon?.size) return pool;
-  const fresh = pool.filter((c) => !alreadyWon.has(c.team));
-  return fresh.length > 0 ? fresh : pool;
+  return pool.filter((c) => !alreadyWon.has(c.team));
 }
 
-/** One winner after tie-break fields, or [] if still tied. */
+/** One winner after tie-break fields, or [] if still tied or no eligible teams. */
 function pickSingleTeam(candidates, fields, alreadyWon = new Set()) {
-  if (!candidates.length) return [];
-  let pool = preferUnawarded(candidates, alreadyWon);
+  let pool = excludeAwarded(candidates, alreadyWon);
+  if (!pool.length) return [];
   for (const f of fields) {
     let best = -Infinity;
     for (const c of pool) {
@@ -297,21 +296,19 @@ function pickSingleTeam(candidates, fields, alreadyWon = new Set()) {
     if (!Number.isFinite(best)) return [];
     pool = pool.filter((c) => c[f] >= best - SCORE_EPS);
     if (pool.length === 1) return [pool[0].team];
-    pool = preferUnawarded(pool, alreadyWon);
   }
   return pool.length === 1 ? [pool[0].team] : [];
 }
 
 function pickSingleDelta(candidates, extraFields = [], alreadyWon = new Set()) {
-  if (!candidates.length) return [];
-  let pool = preferUnawarded(candidates, alreadyWon);
+  let pool = excludeAwarded(candidates, alreadyWon);
+  if (!pool.length) return [];
   let best = -Infinity;
   for (const c of pool) {
     if (c.delta > best) best = c.delta;
   }
   pool = pool.filter((c) => c.delta >= best - SCORE_EPS);
   if (pool.length === 1) return [pool[0].team];
-  pool = preferUnawarded(pool, alreadyWon);
   for (const f of extraFields) {
     best = -Infinity;
     for (const c of pool) {
@@ -319,7 +316,6 @@ function pickSingleDelta(candidates, extraFields = [], alreadyWon = new Set()) {
     }
     pool = pool.filter((c) => c[f] >= best - SCORE_EPS);
     if (pool.length === 1) return [pool[0].team];
-    pool = preferUnawarded(pool, alreadyWon);
   }
   return pool.length === 1 ? [pool[0].team] : [];
 }
@@ -389,6 +385,7 @@ export function computeWeeklyAwards(current, previous) {
   noteWinner(alreadyWon, deepLearners);
 
   const comebackTeam = comebackWinners(current, prev, awards, alreadyWon);
+  noteWinner(alreadyWon, comebackTeam);
 
   return {
     teamOfTheWeek,

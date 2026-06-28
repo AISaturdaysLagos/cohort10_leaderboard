@@ -126,7 +126,7 @@ Teams are ranked by `totalScore` descending.
 
 ## Weekly awards (not part of the 100-point total)
 
-Each category has **at most one winner**. When teams tie on the primary metric, tie-breakers run in order until a single team remains. **Whenever teams are still tied, teams that have not yet won another award this week are preferred.** If teams are still tied after all tie-breakers, **no award is given** (shown as —).
+Each category has **at most one winner**, and **each team can win at most one award per week**. Once a team wins an earlier category, it is **excluded** from all later ones. When teams tie on the primary metric, tie-breakers run in order until a single team remains. If teams are still tied after all tie-breakers, **no award is given** (shown as —).
 
 Awards are resolved in this order (earlier winners count toward the preference rule for later categories): Team of the week → Most improved → Perfect attendance → Deep learners → Comeback team.
 

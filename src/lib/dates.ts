@@ -133,12 +133,24 @@ export function inferDefaultWeekMondayFromData(
 /** Monday ISO dates for each UTC week from `min` through `max` (inclusive). Capped to avoid UI freezes. */
 const MAX_WEEK_OPTIONS = 104;
 
+/**
+ * Build UTC Monday options between `min` and `max`.
+ * When the span exceeds {@link MAX_WEEK_OPTIONS}, keep the **newest** weeks
+ * (oldest historical noise is dropped — important for Skills Boost exports that
+ * include years of stale activity alongside the current cohort).
+ */
 export function listUtcWeekMondaysBetween(min: Date, max: Date): string[] {
   const first = defaultUtcWeekContaining(min).start;
   const last = defaultUtcWeekContaining(max).start;
   const out: string[] = [];
-  for (let t = first.getTime(); t <= last.getTime() && out.length < MAX_WEEK_OPTIONS; t += 7 * 24 * 60 * 60 * 1000) {
+  // Walk newest → oldest so the cap preserves recent scoring weeks.
+  for (
+    let t = last.getTime();
+    t >= first.getTime() && out.length < MAX_WEEK_OPTIONS;
+    t -= 7 * 24 * 60 * 60 * 1000
+  ) {
     out.push(toIsoDate(new Date(t)));
   }
-  return out;
+  // Oldest → newest for callers that expect chronological order.
+  return out.reverse();
 }
